@@ -10,6 +10,7 @@ export default function JoinByLink() {
 
   const [passcode, setPasscode] = useState("");
   const [nickname, setNickname] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -21,7 +22,7 @@ export default function JoinByLink() {
     const res = await fetch("/api/bands/join", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inviteToken, passcode, nickname }),
+      body: JSON.stringify({ inviteToken, passcode, nickname, email }),
     });
 
     const data = await res.json();
@@ -57,6 +58,15 @@ export default function JoinByLink() {
           placeholder="Your nickname"
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
+          required
+          className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+        />
+
+        <input
+          type="email"
+          placeholder="Email (for session recovery)"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           required
           className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
         />

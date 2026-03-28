@@ -20,6 +20,7 @@ export interface Member {
   id: string;
   band_id: string;
   nickname: string;
+  email: string;
   session_token: string;
   created_at: string;
   last_active_at: string;

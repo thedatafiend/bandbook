@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Mode = "home" | "create" | "join";
+type Mode = "home" | "create" | "join" | "recover";
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("home");
@@ -18,6 +18,7 @@ export default function Home() {
       {mode === "home" && <HomeButtons onSelect={setMode} />}
       {mode === "create" && <CreateBandForm onBack={() => setMode("home")} />}
       {mode === "join" && <JoinBandForm onBack={() => setMode("home")} />}
+      {mode === "recover" && <RecoverForm onBack={() => setMode("home")} />}
     </main>
   );
 }
@@ -37,6 +38,12 @@ function HomeButtons({ onSelect }: { onSelect: (m: Mode) => void }) {
       >
         Join a Band
       </button>
+      <button
+        onClick={() => onSelect("recover")}
+        className="text-zinc-500 text-sm underline hover:text-white transition mt-2"
+      >
+        Return to my bands
+      </button>
     </div>
   );
 }
@@ -46,6 +53,7 @@ function CreateBandForm({ onBack }: { onBack: () => void }) {
   const [bandName, setBandName] = useState("");
   const [passcode, setPasscode] = useState("");
   const [nickname, setNickname] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -57,7 +65,7 @@ function CreateBandForm({ onBack }: { onBack: () => void }) {
     const res = await fetch("/api/bands/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bandName, passcode, nickname }),
+      body: JSON.stringify({ bandName, passcode, nickname, email }),
     });
 
     const data = await res.json();
@@ -104,6 +112,15 @@ function CreateBandForm({ onBack }: { onBack: () => void }) {
         className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
       />
 
+      <input
+        type="email"
+        placeholder="Email (for session recovery)"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+      />
+
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
       <button
@@ -129,6 +146,7 @@ function JoinBandForm({ onBack }: { onBack: () => void }) {
   const router = useRouter();
   const [passcode, setPasscode] = useState("");
   const [nickname, setNickname] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [inviteToken, setInviteToken] = useState("");
@@ -141,7 +159,7 @@ function JoinBandForm({ onBack }: { onBack: () => void }) {
     const res = await fetch("/api/bands/join", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inviteToken, passcode, nickname }),
+      body: JSON.stringify({ inviteToken, passcode, nickname, email }),
     });
 
     const data = await res.json();
@@ -186,6 +204,15 @@ function JoinBandForm({ onBack }: { onBack: () => void }) {
         className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
       />
 
+      <input
+        type="email"
+        placeholder="Email (for session recovery)"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+      />
+
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
       <button
@@ -204,5 +231,196 @@ function JoinBandForm({ onBack }: { onBack: () => void }) {
         Back
       </button>
     </form>
+  );
+}
+
+interface BandResult {
+  member_id: string;
+  band_id: string;
+  band_name: string;
+  nickname: string;
+}
+
+function RecoverForm({ onBack }: { onBack: () => void }) {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [bands, setBands] = useState<BandResult[] | null>(null);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [passcode, setPasscode] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleLookup(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    const res = await fetch("/api/auth/recover/lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await res.json();
+    setLoading(false);
+
+    if (!res.ok) {
+      setError(data.error ?? "Something went wrong");
+      return;
+    }
+
+    setBands(data.bands);
+  }
+
+  async function handleRecover(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    const res = await fetch("/api/auth/recover/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberId: selectedMemberId, passcode }),
+    });
+
+    const data = await res.json();
+    setLoading(false);
+
+    if (!res.ok) {
+      setError(data.error ?? "Something went wrong");
+      return;
+    }
+
+    router.push("/songs");
+  }
+
+  // Step 1: Email lookup
+  if (bands === null) {
+    return (
+      <form onSubmit={handleLookup} className="w-full max-w-xs flex flex-col gap-4">
+        <h2 className="text-xl font-semibold">Return to My Bands</h2>
+        <p className="text-zinc-400 text-sm">
+          Enter the email you used when you joined.
+        </p>
+
+        <input
+          type="email"
+          placeholder="Your email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+        />
+
+        {error && <p className="text-red-400 text-sm">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-lg bg-white text-black font-semibold py-3 px-4 hover:bg-zinc-200 transition disabled:opacity-50"
+        >
+          {loading ? "Searching..." : "Find My Bands"}
+        </button>
+
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-zinc-400 text-sm hover:text-white transition"
+        >
+          Back
+        </button>
+      </form>
+    );
+  }
+
+  // Empty state
+  if (bands.length === 0) {
+    return (
+      <div className="w-full max-w-xs flex flex-col gap-4">
+        <h2 className="text-xl font-semibold">No Bands Found</h2>
+        <p className="text-zinc-400 text-sm">
+          No bands were found for that email. You may have used a different
+          address, or you might need to join a band first.
+        </p>
+        <button
+          onClick={() => {
+            setBands(null);
+            setError("");
+          }}
+          className="w-full rounded-lg border border-zinc-600 text-zinc-200 font-semibold py-3 px-4 hover:bg-zinc-800 transition"
+        >
+          Try Another Email
+        </button>
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-zinc-400 text-sm hover:text-white transition"
+        >
+          Back
+        </button>
+      </div>
+    );
+  }
+
+  // Step 2: Band selection + passcode
+  return (
+    <div className="w-full max-w-xs flex flex-col gap-4">
+      <h2 className="text-xl font-semibold">Your Bands</h2>
+      <p className="text-zinc-400 text-sm">
+        Select a band and enter its passcode to rejoin.
+      </p>
+
+      <div className="flex flex-col gap-2">
+        {bands.map((b) => (
+          <button
+            key={b.member_id}
+            onClick={() => {
+              setSelectedMemberId(b.member_id);
+              setPasscode("");
+              setError("");
+            }}
+            className={`text-left rounded-lg border px-4 py-3 transition ${
+              selectedMemberId === b.member_id
+                ? "border-white bg-zinc-800"
+                : "border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
+            }`}
+          >
+            <p className="text-white font-medium">{b.band_name}</p>
+            <p className="text-zinc-500 text-xs">as {b.nickname}</p>
+          </button>
+        ))}
+      </div>
+
+      {selectedMemberId && (
+        <form onSubmit={handleRecover} className="flex flex-col gap-3">
+          <input
+            type="text"
+            placeholder="Band passcode"
+            value={passcode}
+            onChange={(e) => setPasscode(e.target.value)}
+            required
+            className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+          />
+
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-lg bg-white text-black font-semibold py-3 px-4 hover:bg-zinc-200 transition disabled:opacity-50"
+          >
+            {loading ? "Recovering..." : "Rejoin Band"}
+          </button>
+        </form>
+      )}
+
+      <button
+        type="button"
+        onClick={onBack}
+        className="text-zinc-400 text-sm hover:text-white transition"
+      >
+        Back
+      </button>
+    </div>
   );
 }
