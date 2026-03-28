@@ -57,6 +57,7 @@ export default function SongsPage() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("updated");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [showSort, setShowSort] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -198,7 +199,7 @@ export default function SongsPage() {
           </div>
 
           {/* Filter pills + Sort */}
-          <div className="flex flex-col gap-2 mb-4">
+          <div className="flex items-center justify-between gap-3 mb-4">
             <div className="flex gap-1.5 overflow-x-auto">
               {FILTER_OPTIONS.map((opt) => (
                 <button
@@ -214,15 +215,54 @@ export default function SongsPage() {
                 </button>
               ))}
             </div>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="self-end text-xs bg-surface border border-border text-muted rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-accent/40"
-            >
-              <option value="updated">Last Updated</option>
-              <option value="title">Title A–Z</option>
-              <option value="created">Date Created</option>
-            </select>
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setShowSort(!showSort)}
+                className="p-2 text-muted hover:text-foreground transition rounded-lg hover:bg-surface"
+                aria-label="Sort options"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m3 16 4 4 4-4" />
+                  <path d="M7 20V4" />
+                  <path d="m21 8-4-4-4 4" />
+                  <path d="M17 4v16" />
+                </svg>
+              </button>
+              {showSort && (
+                <div className="absolute right-0 top-10 z-10 bg-surface border border-border rounded-lg shadow-lg py-1 min-w-[150px]">
+                  {([
+                    { value: "updated", label: "Last Updated" },
+                    { value: "title", label: "Title A–Z" },
+                    { value: "created", label: "Date Created" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setSortBy(opt.value);
+                        setShowSort(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-xs transition ${
+                        sortBy === opt.value
+                          ? "text-foreground font-semibold bg-surface-alt"
+                          : "text-muted hover:bg-surface-alt hover:text-foreground"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <button
