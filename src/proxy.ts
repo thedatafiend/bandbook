@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const sessionToken = request.cookies.get("bb_session")?.value;
   const bandId = request.cookies.get("bb_band")?.value;
   const { pathname } = request.nextUrl;

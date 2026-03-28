@@ -21,19 +21,29 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to fetch songs" }, { status: 500 });
   }
 
-  // Get version counts per song
+  // Get version counts and lyric presence per song
   const songIds = (songs ?? []).map((s) => s.id);
   let versionCounts: Record<string, number> = {};
+  const songsWithLyrics = new Set<string>();
 
   if (songIds.length > 0) {
-    const { data: versions } = await supabase
-      .from("versions")
-      .select("song_id")
-      .in("song_id", songIds);
+    const [versionsResult, lyricsResult] = await Promise.all([
+      supabase.from("versions").select("song_id").in("song_id", songIds),
+      supabase
+        .from("lyric_sections")
+        .select("song_id")
+        .in("song_id", songIds),
+    ]);
 
-    if (versions) {
-      for (const v of versions) {
+    if (versionsResult.data) {
+      for (const v of versionsResult.data) {
         versionCounts[v.song_id] = (versionCounts[v.song_id] ?? 0) + 1;
+      }
+    }
+
+    if (lyricsResult.data) {
+      for (const l of lyricsResult.data) {
+        songsWithLyrics.add(l.song_id);
       }
     }
   }
@@ -47,6 +57,7 @@ export async function GET() {
     updated_at: song.updated_at,
     created_by_member_id: song.created_by_member_id,
     version_count: versionCounts[song.id] ?? 0,
+    has_lyrics: songsWithLyrics.has(song.id),
   }));
 
   return NextResponse.json({ songs: result });
