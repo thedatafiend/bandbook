@@ -174,7 +174,7 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
       }}
     >
       <div className="absolute inset-0 bg-black/60" />
-      <div className="relative bg-zinc-900 border border-zinc-700 rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto p-6">
+      <div className="relative bg-background border border-border rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold">
@@ -187,7 +187,7 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
           {step !== "uploading" && (
             <button
               onClick={onClose}
-              className="text-zinc-400 hover:text-white transition p-1"
+              className="text-muted hover:text-foreground transition p-1"
               aria-label="Close"
             >
               <svg
@@ -214,10 +214,10 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
           <div className="flex flex-col gap-3">
             <button
               onClick={() => setStep("lyrics-title")}
-              className="w-full rounded-lg bg-white text-black font-semibold py-3 px-4 hover:bg-zinc-200 transition text-left"
+              className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition text-left"
             >
               <div className="font-semibold">Start with Lyrics</div>
-              <div className="text-sm text-zinc-600">
+              <div className="text-sm text-white/70">
                 Create a song with just a title — add audio later
               </div>
             </button>
@@ -226,10 +226,10 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
                 setStep("upload-file");
                 setTimeout(() => fileInputRef.current?.click(), 100);
               }}
-              className="w-full rounded-lg border border-zinc-600 text-zinc-200 font-semibold py-3 px-4 hover:bg-zinc-800 transition text-left"
+              className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition text-left"
             >
               <div className="font-semibold">Upload a Recording</div>
-              <div className="text-sm text-zinc-500">
+              <div className="text-sm text-muted-dim">
                 Upload an audio file from your device
               </div>
             </button>
@@ -252,12 +252,12 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setTitle(e.target.value)}
               autoFocus
               required
-              className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+              className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
             />
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-white text-black font-semibold py-3 px-4 hover:bg-zinc-200 transition disabled:opacity-50"
+              className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition disabled:opacity-50"
             >
               {loading ? "Creating..." : "Create Song"}
             </button>
@@ -268,7 +268,7 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
                 setTitle("");
                 setError("");
               }}
-              className="text-zinc-400 text-sm hover:text-white transition"
+              className="text-muted text-sm hover:text-foreground transition"
             >
               Back
             </button>
@@ -283,9 +283,9 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
               type="file"
               accept=".m4a,.mp3,.wav,.aac,.ogg,audio/*"
               onChange={handleFileSelect}
-              className="block w-full text-sm text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-zinc-700 file:text-white hover:file:bg-zinc-600"
+              className="block w-full text-sm text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-surface-alt file:text-foreground hover:file:bg-border"
             />
-            <p className="text-zinc-500 text-xs">
+            <p className="text-muted-dim text-xs">
               Accepted formats: .m4a, .mp3, .wav, .aac, .ogg — Max 500 MB
             </p>
             <button
@@ -295,7 +295,7 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
                 setFile(null);
                 setError("");
               }}
-              className="text-zinc-400 text-sm hover:text-white transition"
+              className="text-muted text-sm hover:text-foreground transition"
             >
               Back
             </button>
@@ -305,18 +305,18 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
         {/* Step: Upload destination — new song or existing */}
         {step === "upload-destination" && file && (
           <div className="flex flex-col gap-4">
-            <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3">
-              <p className="text-sm text-zinc-400">Selected file</p>
-              <p className="text-white text-sm font-medium truncate">
+            <div className="rounded-lg bg-surface border border-border px-4 py-3">
+              <p className="text-sm text-muted">Selected file</p>
+              <p className="text-foreground text-sm font-medium truncate">
                 {file.name}
               </p>
-              <p className="text-zinc-500 text-xs">
+              <p className="text-muted-dim text-xs">
                 {(file.size / (1024 * 1024)).toFixed(1)} MB
               </p>
             </div>
 
-            <div className="border-b border-zinc-700 pb-4">
-              <h3 className="text-sm font-semibold text-zinc-300 mb-3">
+            <div className="border-b border-border pb-4">
+              <h3 className="text-sm font-semibold text-muted mb-3">
                 Create New Song
               </h3>
               <form
@@ -332,12 +332,12 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
-                  className="flex-1 rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+                  className="flex-1 rounded-lg bg-surface-alt border border-border px-3 py-2.5 text-sm text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
                 />
                 <button
                   type="submit"
                   disabled={loading}
-                  className="shrink-0 rounded-lg bg-white text-black font-semibold py-2.5 px-4 text-sm hover:bg-zinc-200 transition disabled:opacity-50"
+                  className="shrink-0 rounded-lg bg-accent text-white font-semibold py-2.5 px-4 text-sm hover:bg-accent-hover transition disabled:opacity-50"
                 >
                   {loading ? "..." : "Create"}
                 </button>
@@ -346,7 +346,7 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
 
             {songs.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-zinc-300 mb-3">
+                <h3 className="text-sm font-semibold text-muted mb-3">
                   Add to Existing Song
                 </h3>
                 {songs.length > 5 && (
@@ -355,7 +355,7 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
                     placeholder="Search songs..."
                     value={songSearch}
                     onChange={(e) => setSongSearch(e.target.value)}
-                    className="w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30 mb-2"
+                    className="w-full rounded-lg bg-surface-alt border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40 mb-2"
                   />
                 )}
                 <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
@@ -363,17 +363,17 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
                     <button
                       key={s.id}
                       onClick={() => uploadToSong(s.id)}
-                      className="w-full text-left rounded-lg px-3 py-2.5 hover:bg-zinc-800 transition"
+                      className="w-full text-left rounded-lg px-3 py-2.5 hover:bg-surface-alt transition"
                     >
-                      <span className="text-white text-sm">{s.title}</span>
-                      <span className="text-zinc-500 text-xs ml-2">
+                      <span className="text-foreground text-sm">{s.title}</span>
+                      <span className="text-muted-dim text-xs ml-2">
                         {s.version_count}{" "}
                         {s.version_count === 1 ? "version" : "versions"}
                       </span>
                     </button>
                   ))}
                   {filteredSongs.length === 0 && (
-                    <p className="text-zinc-500 text-sm px-3 py-2">
+                    <p className="text-muted-dim text-sm px-3 py-2">
                       No songs found
                     </p>
                   )}
@@ -389,7 +389,7 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
                 setTitle("");
                 setError("");
               }}
-              className="text-zinc-400 text-sm hover:text-white transition"
+              className="text-muted text-sm hover:text-foreground transition"
             >
               Back
             </button>
@@ -399,17 +399,17 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
         {/* Step: Uploading — progress bar */}
         {step === "uploading" && (
           <div className="flex flex-col gap-4">
-            <div className="w-full bg-zinc-800 rounded-full h-3 overflow-hidden">
+            <div className="w-full bg-surface rounded-full h-3 overflow-hidden">
               <div
-                className="bg-white h-full rounded-full transition-all duration-300"
+                className="bg-accent h-full rounded-full transition-all duration-300"
                 style={{ width: `${uploadProgress}%` }}
               />
             </div>
-            <p className="text-center text-zinc-400 text-sm">
+            <p className="text-center text-muted text-sm">
               {uploadProgress}% uploaded
             </p>
             {file && (
-              <p className="text-center text-zinc-500 text-xs truncate">
+              <p className="text-center text-muted-dim text-xs truncate">
                 {file.name}
               </p>
             )}

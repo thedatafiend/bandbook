@@ -48,7 +48,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center">
-        <p className="text-zinc-400">Loading...</p>
+        <p className="text-muted">Loading...</p>
       </main>
     );
   }
@@ -58,7 +58,7 @@ export default function SettingsPage() {
       <header className="flex items-center gap-4 mb-8">
         <button
           onClick={() => router.push("/songs")}
-          className="text-zinc-400 hover:text-white transition"
+          className="text-muted hover:text-foreground transition"
           aria-label="Back to songs"
         >
           <svg
@@ -136,7 +136,7 @@ function RecoveryEmailSection({
   return (
     <section>
       <h2 className="text-lg font-semibold mb-3">Recovery Email</h2>
-      <p className="text-zinc-400 text-sm mb-4">
+      <p className="text-muted text-sm mb-4">
         This email lets you get back in if you lose your session (e.g. cleared
         cookies or new device).
       </p>
@@ -148,16 +148,16 @@ function RecoveryEmailSection({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+          className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
         />
 
         {error && <p className="text-red-400 text-sm">{error}</p>}
-        {success && <p className="text-green-400 text-sm">Email updated!</p>}
+        {success && <p className="text-emerald-400 text-sm">Email updated!</p>}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg border border-zinc-600 text-zinc-200 font-semibold py-2.5 px-4 text-sm hover:bg-zinc-800 transition disabled:opacity-50"
+          className="w-full rounded-lg border border-border-light text-foreground font-semibold py-2.5 px-4 text-sm hover:bg-surface-alt transition disabled:opacity-50"
         >
           {loading ? "Saving..." : "Update Email"}
         </button>
@@ -236,18 +236,18 @@ function InviteLinkSection({
   return (
     <section>
       <h2 className="text-lg font-semibold mb-3">Invite Link</h2>
-      <p className="text-zinc-400 text-sm mb-4">
+      <p className="text-muted text-sm mb-4">
         Share this link with bandmates. They&apos;ll also need the passcode to
         join.
       </p>
 
       <div className="flex items-center gap-2 mb-3">
-        <div className="flex-1 rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-sm text-zinc-300 truncate select-all">
+        <div className="flex-1 rounded-lg bg-surface border border-border px-4 py-3 text-sm text-muted truncate select-all">
           {inviteUrl}
         </div>
         <button
           onClick={copyLink}
-          className="shrink-0 rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-3 text-sm text-zinc-300 hover:bg-zinc-700 transition"
+          className="shrink-0 rounded-lg bg-surface border border-border px-3 py-3 text-sm text-muted hover:bg-surface-alt transition"
           aria-label="Copy invite link"
         >
           {copied ? "Copied!" : "Copy"}
@@ -257,14 +257,14 @@ function InviteLinkSection({
       <div className="flex gap-2">
         <button
           onClick={shareLink}
-          className="rounded-lg bg-white text-black font-semibold py-2.5 px-4 text-sm hover:bg-zinc-200 transition"
+          className="rounded-lg bg-accent text-white font-semibold py-2.5 px-4 text-sm hover:bg-accent-hover transition"
         >
           Share Link
         </button>
         <button
           onClick={handleRegenerate}
           disabled={regenerating}
-          className="rounded-lg border border-zinc-600 text-zinc-300 py-2.5 px-4 text-sm hover:bg-zinc-800 transition disabled:opacity-50"
+          className="rounded-lg border border-border-light text-muted py-2.5 px-4 text-sm hover:bg-surface-alt transition disabled:opacity-50"
         >
           {regenerating
             ? "Regenerating..."
@@ -275,7 +275,7 @@ function InviteLinkSection({
         {confirmRegenerate && (
           <button
             onClick={() => setConfirmRegenerate(false)}
-            className="text-zinc-500 text-sm hover:text-white transition"
+            className="text-muted-dim text-sm hover:text-foreground transition"
           >
             Cancel
           </button>
@@ -321,7 +321,7 @@ function ChangePasscodeSection() {
   return (
     <section>
       <h2 className="text-lg font-semibold mb-3">Change Passcode</h2>
-      <p className="text-zinc-400 text-sm mb-4">
+      <p className="text-muted text-sm mb-4">
         Changing the passcode won&apos;t kick out existing members, but new
         members will need the updated passcode.
       </p>
@@ -333,7 +333,7 @@ function ChangePasscodeSection() {
           value={currentPasscode}
           onChange={(e) => setCurrentPasscode(e.target.value)}
           required
-          className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+          className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
         />
         <input
           type="text"
@@ -343,18 +343,18 @@ function ChangePasscodeSection() {
           minLength={4}
           maxLength={8}
           required
-          className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+          className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
         />
 
         {error && <p className="text-red-400 text-sm">{error}</p>}
         {success && (
-          <p className="text-green-400 text-sm">Passcode updated!</p>
+          <p className="text-emerald-400 text-sm">Passcode updated!</p>
         )}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg border border-zinc-600 text-zinc-200 font-semibold py-2.5 px-4 text-sm hover:bg-zinc-800 transition disabled:opacity-50"
+          className="w-full rounded-lg border border-border-light text-foreground font-semibold py-2.5 px-4 text-sm hover:bg-surface-alt transition disabled:opacity-50"
         >
           {loading ? "Updating..." : "Update Passcode"}
         </button>
@@ -398,15 +398,15 @@ function MembersSection({ members }: { members: MemberInfo[] }) {
         {members.map((m) => (
           <div
             key={m.id}
-            className="flex items-center justify-between rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3"
+            className="flex items-center justify-between rounded-lg bg-surface border border-border px-4 py-3"
           >
             <div>
-              <p className="text-white font-medium">{m.nickname}</p>
-              <p className="text-zinc-500 text-xs">
+              <p className="text-foreground font-medium">{m.nickname}</p>
+              <p className="text-muted-dim text-xs">
                 Joined {formatDate(m.created_at)}
               </p>
             </div>
-            <p className="text-zinc-500 text-xs">
+            <p className="text-muted-dim text-xs">
               Active {formatRelative(m.last_active_at)}
             </p>
           </div>

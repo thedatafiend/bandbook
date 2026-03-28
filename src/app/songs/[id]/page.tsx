@@ -46,12 +46,12 @@ const STATUS_LABELS: Record<string, string> = {
 
 const SECTION_TYPE_COLORS: Record<string, string> = {
   verse: "bg-blue-500/20 text-blue-300",
-  chorus: "bg-purple-500/20 text-purple-300",
+  chorus: "bg-fuchsia-500/20 text-fuchsia-300",
   "pre-chorus": "bg-indigo-500/20 text-indigo-300",
   bridge: "bg-amber-500/20 text-amber-300",
-  intro: "bg-emerald-500/20 text-emerald-300",
+  intro: "bg-teal-500/20 text-teal-300",
   outro: "bg-rose-500/20 text-rose-300",
-  custom: "bg-zinc-500/20 text-zinc-300",
+  custom: "bg-surface-alt/60 text-muted",
 };
 
 export default function SongDetailPage() {
@@ -87,7 +87,7 @@ export default function SongDetailPage() {
   if (loading) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center">
-        <p className="text-zinc-400">Loading...</p>
+        <p className="text-muted">Loading...</p>
       </main>
     );
   }
@@ -95,10 +95,10 @@ export default function SongDetailPage() {
   if (!song) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center">
-        <p className="text-zinc-400 mb-4">Song not found</p>
+        <p className="text-muted mb-4">Song not found</p>
         <button
           onClick={() => router.push("/songs")}
-          className="text-white hover:underline"
+          className="text-foreground hover:underline"
         >
           Back to catalog
         </button>
@@ -116,7 +116,7 @@ export default function SongDetailPage() {
       <header className="flex items-center gap-4 mb-6">
         <button
           onClick={() => router.push("/songs")}
-          className="text-zinc-400 hover:text-white transition"
+          className="text-muted hover:text-foreground transition"
           aria-label="Back to songs"
         >
           <svg
@@ -135,7 +135,7 @@ export default function SongDetailPage() {
         </button>
         <div>
           <h1 className="text-2xl font-bold">{song.title}</h1>
-          <p className="text-zinc-500 text-sm">
+          <p className="text-muted-dim text-sm">
             {STATUS_LABELS[song.status] ?? song.status}
           </p>
         </div>
@@ -148,22 +148,22 @@ export default function SongDetailPage() {
           onEnded={() => {}}
         />
       ) : (
-        <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-6 text-center mb-6">
-          <p className="text-zinc-400 text-sm mb-1">No recordings yet</p>
-          <p className="text-zinc-500 text-xs">
+        <div className="rounded-lg bg-surface border border-border px-4 py-6 text-center mb-6">
+          <p className="text-muted text-sm mb-1">No recordings yet</p>
+          <p className="text-muted-dim text-xs">
             Upload your first recording from the Versions tab
           </p>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-zinc-700 mb-4">
+      <div className="flex border-b border-border mb-4">
         <button
           onClick={() => setActiveTab("versions")}
           className={`flex-1 py-2.5 text-sm font-medium text-center transition ${
             activeTab === "versions"
-              ? "text-white border-b-2 border-white"
-              : "text-zinc-500 hover:text-zinc-300"
+              ? "text-foreground border-b-2 border-accent"
+              : "text-muted-dim hover:text-foreground/80"
           }`}
         >
           Versions{song.versions.length > 0 ? ` (${song.versions.length})` : ""}
@@ -172,13 +172,13 @@ export default function SongDetailPage() {
           onClick={() => setActiveTab("lyrics")}
           className={`flex-1 py-2.5 text-sm font-medium text-center transition ${
             activeTab === "lyrics"
-              ? "text-white border-b-2 border-white"
-              : "text-zinc-500 hover:text-zinc-300"
+              ? "text-foreground border-b-2 border-accent"
+              : "text-muted-dim hover:text-foreground/80"
           }`}
         >
           Lyrics
           {song.lyric_sections.length > 0 && (
-            <span className="ml-1.5 text-xs text-zinc-400">
+            <span className="ml-1.5 text-xs text-muted">
               ({song.lyric_sections.length})
             </span>
           )}
@@ -263,14 +263,14 @@ function AudioPlayer({
 
   if (!version || !version.signed_audio_url) {
     return (
-      <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-5 text-center mb-6">
-        <p className="text-zinc-500 text-sm">Audio unavailable</p>
+      <div className="rounded-lg bg-surface border border-border px-4 py-5 text-center mb-6">
+        <p className="text-muted-dim text-sm">Audio unavailable</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-4 mb-6">
+    <div className="rounded-lg bg-surface border border-border px-4 py-4 mb-6">
       <audio
         ref={audioRef}
         src={version.signed_audio_url}
@@ -286,7 +286,7 @@ function AudioPlayer({
         {/* Play / Pause */}
         <button
           onClick={togglePlay}
-          className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-white text-black hover:bg-zinc-200 transition"
+          className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-accent text-foreground hover:bg-accent-hover transition"
           aria-label={playing ? "Pause" : "Play"}
         >
           {playing ? (
@@ -304,16 +304,16 @@ function AudioPlayer({
         <div className="flex-1 min-w-0">
           {/* Version info */}
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-white text-sm font-medium truncate">
+            <span className="text-foreground text-sm font-medium truncate">
               Version {version.version_number}
             </span>
             {version.label && (
-              <span className="text-zinc-400 text-xs truncate">
+              <span className="text-muted text-xs truncate">
                 — {version.label}
               </span>
             )}
             {version.is_current && (
-              <span className="text-xs bg-white/10 text-white px-1.5 py-0.5 rounded-full shrink-0">
+              <span className="text-xs bg-accent/20 text-foreground px-1.5 py-0.5 rounded-full shrink-0">
                 Current
               </span>
             )}
@@ -322,19 +322,19 @@ function AudioPlayer({
           {/* Progress bar */}
           <div
             ref={progressRef}
-            className="w-full h-1.5 bg-zinc-700 rounded-full cursor-pointer"
+            className="w-full h-1.5 bg-border rounded-full cursor-pointer"
             onClick={handleSeek}
           >
             <div
-              className="h-full bg-white rounded-full transition-[width] duration-100"
+              className="h-full bg-accent rounded-full transition-[width] duration-100"
               style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : "0%" }}
             />
           </div>
 
           {/* Time */}
           <div className="flex justify-between mt-1">
-            <span className="text-zinc-500 text-xs">{formatTime(currentTime)}</span>
-            <span className="text-zinc-500 text-xs">{formatTime(duration)}</span>
+            <span className="text-muted-dim text-xs">{formatTime(currentTime)}</span>
+            <span className="text-muted-dim text-xs">{formatTime(duration)}</span>
           </div>
         </div>
       </div>
@@ -366,7 +366,7 @@ function VersionsSection({
         <h2 className="sr-only">Versions</h2>
         <button
           onClick={() => setShowUpload(true)}
-          className="ml-auto text-sm text-zinc-300 border border-zinc-600 rounded-lg px-3 py-1.5 hover:bg-zinc-800 transition"
+          className="ml-auto text-sm text-foreground/80 border border-border-light rounded-lg px-3 py-1.5 hover:bg-surface transition"
         >
           + Add Recording
         </button>
@@ -384,11 +384,11 @@ function VersionsSection({
       )}
 
       {versions.length === 0 && !showUpload && (
-        <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-6 text-center">
-          <p className="text-zinc-400 text-sm mb-3">No recordings yet</p>
+        <div className="rounded-lg bg-surface border border-border px-4 py-6 text-center">
+          <p className="text-muted text-sm mb-3">No recordings yet</p>
           <button
             onClick={() => setShowUpload(true)}
-            className="text-sm text-white underline hover:no-underline"
+            className="text-sm text-foreground underline hover:no-underline"
           >
             Upload your first recording
           </button>
@@ -463,8 +463,8 @@ function VersionCard({
     <div
       className={`rounded-lg border px-4 py-3 ${
         version.is_current
-          ? "bg-zinc-800 border-white/20"
-          : "bg-zinc-800/50 border-zinc-700"
+          ? "bg-surface border-accent/20"
+          : "bg-surface/50 border-border"
       }`}
     >
       <div className="flex items-center gap-3">
@@ -473,8 +473,8 @@ function VersionCard({
           onClick={onPlay}
           className={`shrink-0 w-8 h-8 flex items-center justify-center rounded-full border transition ${
             isPlaying
-              ? "bg-white text-black border-white"
-              : "bg-transparent text-zinc-400 border-zinc-600 hover:text-white hover:border-zinc-400"
+              ? "bg-accent text-foreground border-accent"
+              : "bg-transparent text-muted border-border-light hover:text-foreground hover:border-accent/50"
           }`}
           aria-label={`Play version ${version.version_number}`}
         >
@@ -485,16 +485,16 @@ function VersionCard({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-white text-sm font-medium">
+            <span className="text-foreground text-sm font-medium">
               Version {version.version_number}
             </span>
             {version.label && (
-              <span className="text-zinc-400 text-sm truncate">
+              <span className="text-muted text-sm truncate">
                 — {version.label}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 text-zinc-500 text-xs mt-0.5">
+          <div className="flex items-center gap-3 text-muted-dim text-xs mt-0.5">
             <span>by {version.created_by_nickname}</span>
             <span>{formatDate(version.created_at)}</span>
             {version.audio_duration != null && (
@@ -505,13 +505,13 @@ function VersionCard({
 
         <div className="flex items-center gap-2 shrink-0">
           {version.is_current && (
-            <span className="text-xs bg-white/10 text-white px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-accent/20 text-foreground px-2 py-0.5 rounded-full">
               Current
             </span>
           )}
           <button
             onClick={onEdit}
-            className="text-zinc-500 hover:text-white transition p-1"
+            className="text-muted-dim hover:text-foreground transition p-1"
             aria-label="Edit version"
           >
             <svg
@@ -534,30 +534,30 @@ function VersionCard({
       </div>
 
       {version.notes && !isEditing && (
-        <p className="text-zinc-400 text-xs mt-2 italic ml-11">{version.notes}</p>
+        <p className="text-muted text-xs mt-2 italic ml-11">{version.notes}</p>
       )}
 
       {isEditing && (
-        <div className="mt-3 pt-3 border-t border-zinc-700 flex flex-col gap-2">
+        <div className="mt-3 pt-3 border-t border-border flex flex-col gap-2">
           <input
             type="text"
             placeholder="Label (e.g. 'Slower tempo take')"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            className="rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="rounded-lg bg-surface-alt border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
           <textarea
             placeholder="Notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
-            className="rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30 resize-none"
+            className="rounded-lg bg-surface-alt border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none"
           />
           <div className="flex items-center gap-2">
             <button
               onClick={saveChanges}
               disabled={saving}
-              className="rounded-lg bg-white text-black font-semibold py-1.5 px-3 text-xs hover:bg-zinc-200 transition disabled:opacity-50"
+              className="rounded-lg bg-accent text-foreground font-semibold py-1.5 px-3 text-xs hover:bg-accent-hover transition disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save"}
             </button>
@@ -565,14 +565,14 @@ function VersionCard({
               <button
                 onClick={setAsCurrent}
                 disabled={settingCurrent}
-                className="rounded-lg border border-zinc-600 text-zinc-300 py-1.5 px-3 text-xs hover:bg-zinc-700 transition disabled:opacity-50"
+                className="rounded-lg border border-border-light text-foreground/80 py-1.5 px-3 text-xs hover:bg-surface-alt transition disabled:opacity-50"
               >
                 {settingCurrent ? "Setting..." : "Set as Current"}
               </button>
             )}
             <button
               onClick={onEdit}
-              className="text-zinc-500 text-xs hover:text-white transition ml-auto"
+              className="text-muted-dim text-xs hover:text-foreground transition ml-auto"
             >
               Cancel
             </button>
@@ -881,16 +881,16 @@ function LyricsComposer({
     return (
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-medium text-zinc-400">Read Mode</h2>
+          <h2 className="text-sm font-medium text-muted">Read Mode</h2>
           <button
             onClick={() => setReadMode(false)}
-            className="text-sm text-zinc-300 border border-zinc-600 rounded-lg px-3 py-1.5 hover:bg-zinc-800 transition"
+            className="text-sm text-foreground/80 border border-border-light rounded-lg px-3 py-1.5 hover:bg-surface transition"
           >
             Edit
           </button>
         </div>
         {sections.length === 0 ? (
-          <p className="text-zinc-500 text-center py-8">No lyrics yet</p>
+          <p className="text-muted-dim text-center py-8">No lyrics yet</p>
         ) : (
           <div className="flex flex-col gap-5">
             {sections.map((section) => (
@@ -902,7 +902,7 @@ function LyricsComposer({
                 >
                   {section.section_label ?? section.section_type.charAt(0).toUpperCase() + section.section_type.slice(1)}
                 </span>
-                <p className="text-zinc-100 text-xl whitespace-pre-wrap leading-relaxed font-light">
+                <p className="text-foreground text-xl whitespace-pre-wrap leading-relaxed font-light">
                   {section.content || "\u00A0"}
                 </p>
               </div>
@@ -943,7 +943,7 @@ function LyricsComposer({
       {/* Toolbar */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-muted-dim">
             {saveStatus === "saving"
               ? "Saving..."
               : saveStatus === "saved"
@@ -954,14 +954,14 @@ function LyricsComposer({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowHistory(true)}
-            className="text-xs text-zinc-400 hover:text-white transition px-2 py-1"
+            className="text-xs text-muted hover:text-foreground transition px-2 py-1"
             aria-label="Revision history"
           >
             History
           </button>
           <button
             onClick={() => setReadMode(true)}
-            className="text-sm text-zinc-300 border border-zinc-600 rounded-lg px-3 py-1.5 hover:bg-zinc-800 transition"
+            className="text-sm text-foreground/80 border border-border-light rounded-lg px-3 py-1.5 hover:bg-surface transition"
           >
             Read
           </button>
@@ -983,7 +983,7 @@ function LyricsComposer({
 
       {/* Sections */}
       {sections.length === 0 ? (
-        <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-8 text-center mb-3">
+        <div className="rounded-lg bg-surface border border-border px-4 py-8 text-center mb-3">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="32"
@@ -994,13 +994,13 @@ function LyricsComposer({
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="mx-auto mb-3 text-zinc-500"
+            className="mx-auto mb-3 text-muted-dim"
           >
             <path d="M12 20h9" />
             <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" />
           </svg>
-          <p className="text-zinc-400 text-sm mb-1">No lyrics yet</p>
-          <p className="text-zinc-500 text-xs">
+          <p className="text-muted text-sm mb-1">No lyrics yet</p>
+          <p className="text-muted-dim text-xs">
             Add a section below to start writing
           </p>
         </div>
@@ -1015,10 +1015,10 @@ function LyricsComposer({
               }}
               className={`rounded-lg border px-4 py-3 transition-colors ${
                 dragOverIdx === idx && dragIdx !== idx
-                  ? "border-white/40 bg-zinc-700/50"
+                  ? "border-accent/40 bg-border/50"
                   : dragIdx === idx
-                  ? "border-white/30 bg-zinc-700/30"
-                  : "border-zinc-700 bg-zinc-800/50"
+                  ? "border-accent/30 bg-border/30"
+                  : "border-border bg-surface/50"
               } ${dragIdx === idx ? "opacity-50" : ""}`}
             >
               <div className="flex items-center gap-2 mb-2">
@@ -1028,7 +1028,7 @@ function LyricsComposer({
                   onPointerMove={handlePointerMoveOnHandle}
                   onPointerUp={handlePointerUpOnHandle}
                   onPointerCancel={handlePointerCancelOnHandle}
-                  className="cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-400 transition select-none touch-none"
+                  className="cursor-grab active:cursor-grabbing text-muted-dim hover:text-muted transition select-none touch-none"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <circle cx="9" cy="6" r="1.5" />
@@ -1057,14 +1057,14 @@ function LyricsComposer({
                         }}
                         className={`text-xs px-2 py-0.5 rounded-full transition ${
                           SECTION_TYPE_COLORS[t.value] ?? SECTION_TYPE_COLORS.custom
-                        } ${section.section_type === t.value ? "ring-1 ring-white/40" : "opacity-70 hover:opacity-100"}`}
+                        } ${section.section_type === t.value ? "ring-1 ring-accent/50" : "opacity-70 hover:opacity-100"}`}
                       >
                         {t.label}
                       </button>
                     ))}
                     <button
                       onClick={() => setTypeChangeId(null)}
-                      className="text-zinc-500 text-xs hover:text-white transition"
+                      className="text-muted-dim text-xs hover:text-foreground transition"
                     >
                       Cancel
                     </button>
@@ -1083,7 +1083,7 @@ function LyricsComposer({
                 <div className="ml-auto relative">
                   <button
                     onClick={() => setMenuOpenId(menuOpenId === section.clientId ? null : section.clientId)}
-                    className="text-zinc-500 hover:text-white transition p-1"
+                    className="text-muted-dim hover:text-foreground transition p-1"
                     aria-label="Section options"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1093,14 +1093,14 @@ function LyricsComposer({
                     </svg>
                   </button>
                   {menuOpenId === section.clientId && (
-                    <div className="absolute right-0 top-8 z-10 bg-zinc-800 border border-zinc-600 rounded-lg shadow-lg py-1 min-w-[140px]">
+                    <div className="absolute right-0 top-8 z-10 bg-surface border border-border-light rounded-lg shadow-lg py-1 min-w-[140px]">
                       {idx > 0 && (
                         <button
                           onClick={() => {
                             moveSection(idx, idx - 1);
                             setMenuOpenId(null);
                           }}
-                          className="w-full text-left px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700 transition"
+                          className="w-full text-left px-3 py-1.5 text-sm text-foreground/80 hover:bg-surface-alt transition"
                         >
                           Move Up
                         </button>
@@ -1111,14 +1111,14 @@ function LyricsComposer({
                             moveSection(idx, idx + 1);
                             setMenuOpenId(null);
                           }}
-                          className="w-full text-left px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700 transition"
+                          className="w-full text-left px-3 py-1.5 text-sm text-foreground/80 hover:bg-surface-alt transition"
                         >
                           Move Down
                         </button>
                       )}
                       <button
                         onClick={() => duplicateSection(section.clientId)}
-                        className="w-full text-left px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700 transition"
+                        className="w-full text-left px-3 py-1.5 text-sm text-foreground/80 hover:bg-surface-alt transition"
                       >
                         Duplicate
                       </button>
@@ -1127,13 +1127,13 @@ function LyricsComposer({
                           setTypeChangeId(section.clientId);
                           setMenuOpenId(null);
                         }}
-                        className="w-full text-left px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700 transition"
+                        className="w-full text-left px-3 py-1.5 text-sm text-foreground/80 hover:bg-surface-alt transition"
                       >
                         Change Type
                       </button>
                       <button
                         onClick={() => deleteSection(section.clientId)}
-                        className="w-full text-left px-3 py-1.5 text-sm text-red-400 hover:bg-zinc-700 transition"
+                        className="w-full text-left px-3 py-1.5 text-sm text-red-400 hover:bg-surface-alt transition"
                       >
                         Delete
                       </button>
@@ -1148,7 +1148,7 @@ function LyricsComposer({
                 onChange={(e) => updateSection(section.clientId, { content: e.target.value })}
                 placeholder="Write lyrics..."
                 rows={3}
-                className="w-full bg-transparent text-zinc-200 text-sm placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed"
+                className="w-full bg-transparent text-foreground/90 text-sm placeholder:text-muted-dim resize-none focus:outline-none leading-relaxed"
               />
             </div>
           ))}
@@ -1157,8 +1157,8 @@ function LyricsComposer({
 
       {/* Add Section */}
       {showTypePicker ? (
-        <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3">
-          <p className="text-zinc-400 text-xs mb-2">Choose section type:</p>
+        <div className="rounded-lg bg-surface border border-border px-4 py-3">
+          <p className="text-muted text-xs mb-2">Choose section type:</p>
           <div className="flex flex-wrap gap-2">
             {SECTION_TYPES.map((t) => (
               <button
@@ -1181,7 +1181,7 @@ function LyricsComposer({
           </div>
           <button
             onClick={() => setShowTypePicker(false)}
-            className="text-zinc-500 text-xs hover:text-white transition mt-2"
+            className="text-muted-dim text-xs hover:text-foreground transition mt-2"
           >
             Cancel
           </button>
@@ -1189,7 +1189,7 @@ function LyricsComposer({
       ) : (
         <button
           onClick={() => setShowTypePicker(true)}
-          className="w-full rounded-lg border border-dashed border-zinc-600 text-zinc-400 py-3 text-sm hover:border-zinc-400 hover:text-zinc-300 transition"
+          className="w-full rounded-lg border border-dashed border-border-light text-muted py-3 text-sm hover:border-accent/50 hover:text-foreground/80 transition"
         >
           + Add Section
         </button>
@@ -1251,19 +1251,19 @@ function RevisionHistory({
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => setPreviewRevision(null)}
-            className="text-zinc-400 hover:text-white transition text-sm"
+            className="text-muted hover:text-foreground transition text-sm"
           >
             &larr; Back to history
           </button>
           <button
             onClick={() => handleRestore(previewRevision.id)}
             disabled={restoring}
-            className="rounded-lg bg-white text-black font-semibold py-1.5 px-3 text-xs hover:bg-zinc-200 transition disabled:opacity-50"
+            className="rounded-lg bg-accent text-foreground font-semibold py-1.5 px-3 text-xs hover:bg-accent-hover transition disabled:opacity-50"
           >
             {restoring ? "Restoring..." : "Restore this version"}
           </button>
         </div>
-        <p className="text-zinc-500 text-xs mb-3">
+        <p className="text-muted-dim text-xs mb-3">
           {formatDateTime(previewRevision.created_at)} by {previewRevision.created_by_nickname}
           {previewRevision.revision_note && (
             <span className="italic ml-1">— {previewRevision.revision_note}</span>
@@ -1271,7 +1271,7 @@ function RevisionHistory({
         </p>
         <div className="flex flex-col gap-3">
           {(snap.sections ?? []).map((s, i) => (
-            <div key={i} className="rounded-lg bg-zinc-800/50 border border-zinc-700 px-4 py-3">
+            <div key={i} className="rounded-lg bg-surface/50 border border-border px-4 py-3">
               <span
                 className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mb-2 ${
                   SECTION_TYPE_COLORS[s.section_type] ?? SECTION_TYPE_COLORS.custom
@@ -1279,7 +1279,7 @@ function RevisionHistory({
               >
                 {s.section_label ?? s.section_type.charAt(0).toUpperCase() + s.section_type.slice(1)}
               </span>
-              <p className="text-zinc-200 text-sm whitespace-pre-wrap leading-relaxed">
+              <p className="text-foreground/90 text-sm whitespace-pre-wrap leading-relaxed">
                 {s.content || "\u00A0"}
               </p>
             </div>
@@ -1292,21 +1292,21 @@ function RevisionHistory({
   return (
     <section>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-medium text-zinc-400">Revision History</h2>
+        <h2 className="text-sm font-medium text-muted">Revision History</h2>
         <button
           onClick={onClose}
-          className="text-sm text-zinc-300 border border-zinc-600 rounded-lg px-3 py-1.5 hover:bg-zinc-800 transition"
+          className="text-sm text-foreground/80 border border-border-light rounded-lg px-3 py-1.5 hover:bg-surface transition"
         >
           Back to Editor
         </button>
       </div>
 
       {loading ? (
-        <p className="text-zinc-500 text-sm text-center py-8">Loading...</p>
+        <p className="text-muted-dim text-sm text-center py-8">Loading...</p>
       ) : revisions.length === 0 ? (
-        <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-8 text-center">
-          <p className="text-zinc-400 text-sm">No revisions yet</p>
-          <p className="text-zinc-500 text-xs mt-1">
+        <div className="rounded-lg bg-surface border border-border px-4 py-8 text-center">
+          <p className="text-muted text-sm">No revisions yet</p>
+          <p className="text-muted-dim text-xs mt-1">
             Revisions are created automatically when you save lyrics
           </p>
         </div>
@@ -1316,19 +1316,19 @@ function RevisionHistory({
             <button
               key={rev.id}
               onClick={() => setPreviewRevision(rev)}
-              className="w-full text-left rounded-lg bg-zinc-800/50 border border-zinc-700 px-4 py-3 hover:border-zinc-500 transition"
+              className="w-full text-left rounded-lg bg-surface/50 border border-border px-4 py-3 hover:border-border-light transition"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-white text-sm">
+                  <p className="text-foreground text-sm">
                     {idx === 0 ? "Latest" : formatDateTime(rev.created_at)}
                   </p>
-                  <p className="text-zinc-500 text-xs mt-0.5">
+                  <p className="text-muted-dim text-xs mt-0.5">
                     by {rev.created_by_nickname}
                     {rev.revision_note && <span className="italic"> — {rev.revision_note}</span>}
                   </p>
                 </div>
-                <span className="text-zinc-500 text-xs">
+                <span className="text-muted-dim text-xs">
                   {rev.snapshot.sections?.length ?? 0} sections
                 </span>
               </div>
@@ -1412,7 +1412,7 @@ function UploadWidget({
   }
 
   return (
-    <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-4 mb-3">
+    <div className="rounded-lg bg-surface border border-border px-4 py-4 mb-3">
       {!uploading ? (
         <>
           {!file ? (
@@ -1422,9 +1422,9 @@ function UploadWidget({
                 type="file"
                 accept=".m4a,.mp3,.wav,.aac,.ogg,audio/*"
                 onChange={handleFileSelect}
-                className="block w-full text-sm text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-zinc-700 file:text-white hover:file:bg-zinc-600"
+                className="block w-full text-sm text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-border file:text-foreground hover:file:bg-border-light"
               />
-              <p className="text-zinc-500 text-xs">
+              <p className="text-muted-dim text-xs">
                 .m4a, .mp3, .wav, .aac, .ogg — Max 500 MB
               </p>
             </div>
@@ -1432,23 +1432,23 @@ function UploadWidget({
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <p className="text-white text-sm font-medium truncate">
+                  <p className="text-foreground text-sm font-medium truncate">
                     {file.name}
                   </p>
-                  <p className="text-zinc-500 text-xs">
+                  <p className="text-muted-dim text-xs">
                     {(file.size / (1024 * 1024)).toFixed(1)} MB
                   </p>
                 </div>
                 <button
                   onClick={() => setFile(null)}
-                  className="text-zinc-500 text-xs hover:text-white transition shrink-0"
+                  className="text-muted-dim text-xs hover:text-foreground transition shrink-0"
                 >
                   Change
                 </button>
               </div>
               <button
                 onClick={startUpload}
-                className="w-full rounded-lg bg-white text-black font-semibold py-2.5 px-4 text-sm hover:bg-zinc-200 transition"
+                className="w-full rounded-lg bg-accent text-foreground font-semibold py-2.5 px-4 text-sm hover:bg-accent-hover transition"
               >
                 Upload
               </button>
@@ -1457,20 +1457,20 @@ function UploadWidget({
           {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
           <button
             onClick={onCancel}
-            className="text-zinc-500 text-xs hover:text-white transition mt-3"
+            className="text-muted-dim text-xs hover:text-foreground transition mt-3"
           >
             Cancel
           </button>
         </>
       ) : (
         <div className="flex flex-col gap-2">
-          <div className="w-full bg-zinc-900 rounded-full h-2.5 overflow-hidden">
+          <div className="w-full bg-surface-alt rounded-full h-2.5 overflow-hidden">
             <div
-              className="bg-white h-full rounded-full transition-all duration-300"
+              className="bg-accent h-full rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-zinc-400 text-xs text-center">
+          <p className="text-muted text-xs text-center">
             {progress}% — {file?.name}
           </p>
         </div>
