@@ -8,12 +8,23 @@ interface VersionDetail {
   version_number: number;
   label: string | null;
   audio_url: string;
+  signed_audio_url: string | null;
   audio_duration: number | null;
   notes: string | null;
   is_current: boolean;
   created_at: string;
   created_by_member_id: string;
   created_by_nickname: string;
+}
+
+interface LyricSectionDetail {
+  id: string;
+  section_type: string;
+  section_label: string | null;
+  content: string;
+  sort_order: number;
+  updated_at: string;
+  updated_by_nickname: string | null;
 }
 
 interface SongDetail {
@@ -24,6 +35,7 @@ interface SongDetail {
   created_at: string;
   updated_at: string;
   versions: VersionDetail[];
+  lyric_sections: LyricSectionDetail[];
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -32,17 +44,39 @@ const STATUS_LABELS: Record<string, string> = {
   finished: "Finished",
 };
 
+const SECTION_TYPE_COLORS: Record<string, string> = {
+  verse: "bg-blue-500/20 text-blue-300",
+  chorus: "bg-purple-500/20 text-purple-300",
+  "pre-chorus": "bg-indigo-500/20 text-indigo-300",
+  bridge: "bg-amber-500/20 text-amber-300",
+  intro: "bg-emerald-500/20 text-emerald-300",
+  outro: "bg-rose-500/20 text-rose-300",
+  custom: "bg-zinc-500/20 text-zinc-300",
+};
+
 export default function SongDetailPage() {
   const router = useRouter();
   const params = useParams();
   const songId = params.id as string;
   const [song, setSong] = useState<SongDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"versions" | "lyrics">("versions");
+  const [playerVersionId, setPlayerVersionId] = useState<string | null>(null);
 
   const fetchSong = useCallback(async () => {
     const res = await fetch(`/api/songs/${songId}`);
     const data = await res.json();
-    setSong(data.song ?? null);
+    const s = data.song as SongDetail | null;
+    setSong(s);
+    if (s) {
+      // Default tab: Lyrics if no audio versions, else Versions
+      if (s.versions.length === 0) {
+        setActiveTab("lyrics");
+      }
+      // Set player to current version
+      const current = s.versions.find((v) => v.is_current);
+      if (current) setPlayerVersionId(current.id);
+    }
     setLoading(false);
   }, [songId]);
 
@@ -72,9 +106,14 @@ export default function SongDetailPage() {
     );
   }
 
+  const playerVersion = playerVersionId
+    ? song.versions.find((v) => v.id === playerVersionId) ?? null
+    : null;
+
   return (
     <main className="flex flex-1 flex-col px-6 py-8 max-w-lg mx-auto w-full">
-      <header className="flex items-center gap-4 mb-8">
+      {/* Header */}
+      <header className="flex items-center gap-4 mb-6">
         <button
           onClick={() => router.push("/songs")}
           className="text-zinc-400 hover:text-white transition"
@@ -102,44 +141,228 @@ export default function SongDetailPage() {
         </div>
       </header>
 
-      <VersionsSection
-        songId={song.id}
-        versions={song.versions}
-        onUpdate={fetchSong}
-      />
-
-      {/* Lyrics section placeholder */}
-      <section>
-        <h2 className="text-lg font-semibold mb-3">Lyrics</h2>
-        <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-6 text-center">
-          <p className="text-zinc-400 text-sm">Lyrics composer coming soon</p>
+      {/* Top Audio Player */}
+      {song.versions.length > 0 ? (
+        <AudioPlayer
+          version={playerVersion}
+          onEnded={() => {}}
+        />
+      ) : (
+        <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-6 text-center mb-6">
+          <p className="text-zinc-400 text-sm mb-1">No recordings yet</p>
+          <p className="text-zinc-500 text-xs">
+            Upload your first recording from the Versions tab
+          </p>
         </div>
-      </section>
+      )}
+
+      {/* Tabs */}
+      <div className="flex border-b border-zinc-700 mb-4">
+        <button
+          onClick={() => setActiveTab("versions")}
+          className={`flex-1 py-2.5 text-sm font-medium text-center transition ${
+            activeTab === "versions"
+              ? "text-white border-b-2 border-white"
+              : "text-zinc-500 hover:text-zinc-300"
+          }`}
+        >
+          Versions{song.versions.length > 0 ? ` (${song.versions.length})` : ""}
+        </button>
+        <button
+          onClick={() => setActiveTab("lyrics")}
+          className={`flex-1 py-2.5 text-sm font-medium text-center transition ${
+            activeTab === "lyrics"
+              ? "text-white border-b-2 border-white"
+              : "text-zinc-500 hover:text-zinc-300"
+          }`}
+        >
+          Lyrics
+          {song.lyric_sections.length > 0 && (
+            <span className="ml-1.5 text-xs text-zinc-400">
+              ({song.lyric_sections.length})
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === "versions" ? (
+        <VersionsSection
+          songId={song.id}
+          versions={song.versions}
+          playerVersionId={playerVersionId}
+          onPlayVersion={(id) => setPlayerVersionId(id)}
+          onUpdate={fetchSong}
+        />
+      ) : (
+        <LyricsSection lyricSections={song.lyric_sections} />
+      )}
     </main>
   );
 }
 
+/* ─── Audio Player ─── */
+
+function AudioPlayer({
+  version,
+  onEnded,
+}: {
+  version: VersionDetail | null;
+  onEnded: () => void;
+}) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const progressRef = useRef<HTMLDivElement>(null);
+
+  // Reset when version changes
+  useEffect(() => {
+    setPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+  }, [version?.id]);
+
+  function togglePlay() {
+    if (!audioRef.current) return;
+    if (playing) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setPlaying(!playing);
+  }
+
+  function handleTimeUpdate() {
+    if (!audioRef.current) return;
+    setCurrentTime(audioRef.current.currentTime);
+  }
+
+  function handleLoadedMetadata() {
+    if (!audioRef.current) return;
+    setDuration(audioRef.current.duration);
+  }
+
+  function handleEnded() {
+    setPlaying(false);
+    setCurrentTime(0);
+    onEnded();
+  }
+
+  function handleSeek(e: React.MouseEvent<HTMLDivElement>) {
+    if (!audioRef.current || !progressRef.current) return;
+    const rect = progressRef.current.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audioRef.current.currentTime = ratio * duration;
+    setCurrentTime(audioRef.current.currentTime);
+  }
+
+  if (!version || !version.signed_audio_url) {
+    return (
+      <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-5 text-center mb-6">
+        <p className="text-zinc-500 text-sm">Audio unavailable</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-4 mb-6">
+      <audio
+        ref={audioRef}
+        src={version.signed_audio_url}
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+        onEnded={handleEnded}
+        onPause={() => setPlaying(false)}
+        onPlay={() => setPlaying(true)}
+        preload="metadata"
+      />
+
+      <div className="flex items-center gap-3">
+        {/* Play / Pause */}
+        <button
+          onClick={togglePlay}
+          className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-white text-black hover:bg-zinc-200 transition"
+          aria-label={playing ? "Pause" : "Play"}
+        >
+          {playing ? (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="4" width="4" height="16" rx="1" />
+              <rect x="14" y="4" width="4" height="16" rx="1" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          )}
+        </button>
+
+        <div className="flex-1 min-w-0">
+          {/* Version info */}
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-white text-sm font-medium truncate">
+              Version {version.version_number}
+            </span>
+            {version.label && (
+              <span className="text-zinc-400 text-xs truncate">
+                — {version.label}
+              </span>
+            )}
+            {version.is_current && (
+              <span className="text-xs bg-white/10 text-white px-1.5 py-0.5 rounded-full shrink-0">
+                Current
+              </span>
+            )}
+          </div>
+
+          {/* Progress bar */}
+          <div
+            ref={progressRef}
+            className="w-full h-1.5 bg-zinc-700 rounded-full cursor-pointer"
+            onClick={handleSeek}
+          >
+            <div
+              className="h-full bg-white rounded-full transition-[width] duration-100"
+              style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : "0%" }}
+            />
+          </div>
+
+          {/* Time */}
+          <div className="flex justify-between mt-1">
+            <span className="text-zinc-500 text-xs">{formatTime(currentTime)}</span>
+            <span className="text-zinc-500 text-xs">{formatTime(duration)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Versions Section ─── */
+
 function VersionsSection({
   songId,
   versions,
+  playerVersionId,
+  onPlayVersion,
   onUpdate,
 }: {
   songId: string;
   versions: VersionDetail[];
+  playerVersionId: string | null;
+  onPlayVersion: (id: string) => void;
   onUpdate: () => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
 
   return (
-    <section className="mb-8">
+    <section>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">
-          Versions ({versions.length})
-        </h2>
+        <h2 className="sr-only">Versions</h2>
         <button
           onClick={() => setShowUpload(true)}
-          className="text-sm text-zinc-300 border border-zinc-600 rounded-lg px-3 py-1.5 hover:bg-zinc-800 transition"
+          className="ml-auto text-sm text-zinc-300 border border-zinc-600 rounded-lg px-3 py-1.5 hover:bg-zinc-800 transition"
         >
           + Add Recording
         </button>
@@ -174,7 +397,9 @@ function VersionsSection({
             <VersionCard
               key={v.id}
               version={v}
+              isPlaying={playerVersionId === v.id}
               isEditing={editingId === v.id}
+              onPlay={() => onPlayVersion(v.id)}
               onEdit={() => setEditingId(editingId === v.id ? null : v.id)}
               onUpdate={onUpdate}
             />
@@ -185,14 +410,20 @@ function VersionsSection({
   );
 }
 
+/* ─── Version Card ─── */
+
 function VersionCard({
   version,
+  isPlaying,
   isEditing,
+  onPlay,
   onEdit,
   onUpdate,
 }: {
   version: VersionDetail;
+  isPlaying: boolean;
   isEditing: boolean;
+  onPlay: () => void;
   onEdit: () => void;
   onUpdate: () => void;
 }) {
@@ -200,13 +431,6 @@ function VersionCard({
   const [notes, setNotes] = useState(version.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [settingCurrent, setSettingCurrent] = useState(false);
-
-  function formatDate(dateStr: string) {
-    return new Date(dateStr).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-    });
-  }
 
   async function saveChanges() {
     setSaving(true);
@@ -239,17 +463,42 @@ function VersionCard({
           : "bg-zinc-800/50 border-zinc-700"
       }`}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        {/* Play button */}
+        <button
+          onClick={onPlay}
+          className={`shrink-0 w-8 h-8 flex items-center justify-center rounded-full border transition ${
+            isPlaying
+              ? "bg-white text-black border-white"
+              : "bg-transparent text-zinc-400 border-zinc-600 hover:text-white hover:border-zinc-400"
+          }`}
+          aria-label={`Play version ${version.version_number}`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </button>
+
         <div className="flex-1 min-w-0">
-          <span className="text-white text-sm font-medium">
-            Version {version.version_number}
-          </span>
-          {version.label && (
-            <span className="text-zinc-400 text-sm ml-2">
-              — {version.label}
+          <div className="flex items-center gap-2">
+            <span className="text-white text-sm font-medium">
+              Version {version.version_number}
             </span>
-          )}
+            {version.label && (
+              <span className="text-zinc-400 text-sm truncate">
+                — {version.label}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 text-zinc-500 text-xs mt-0.5">
+            <span>by {version.created_by_nickname}</span>
+            <span>{formatDate(version.created_at)}</span>
+            {version.audio_duration != null && (
+              <span>{formatTime(version.audio_duration)}</span>
+            )}
+          </div>
         </div>
+
         <div className="flex items-center gap-2 shrink-0">
           {version.is_current && (
             <span className="text-xs bg-white/10 text-white px-2 py-0.5 rounded-full">
@@ -280,13 +529,8 @@ function VersionCard({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 text-zinc-500 text-xs mt-1">
-        <span>by {version.created_by_nickname}</span>
-        <span>{formatDate(version.created_at)}</span>
-      </div>
-
       {version.notes && !isEditing && (
-        <p className="text-zinc-400 text-xs mt-2 italic">{version.notes}</p>
+        <p className="text-zinc-400 text-xs mt-2 italic ml-11">{version.notes}</p>
       )}
 
       {isEditing && (
@@ -334,6 +578,65 @@ function VersionCard({
     </div>
   );
 }
+
+/* ─── Lyrics Section ─── */
+
+function LyricsSection({
+  lyricSections,
+}: {
+  lyricSections: LyricSectionDetail[];
+}) {
+  if (lyricSections.length === 0) {
+    return (
+      <section>
+        <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-8 text-center">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="mx-auto mb-3 text-zinc-500"
+          >
+            <path d="M12 20h9" />
+            <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" />
+          </svg>
+          <p className="text-zinc-400 text-sm mb-1">No lyrics yet</p>
+          <p className="text-zinc-500 text-xs">
+            Start writing to build your song structure
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section>
+      <div className="flex flex-col gap-3">
+        {lyricSections.map((section) => (
+          <div key={section.id} className="rounded-lg bg-zinc-800/50 border border-zinc-700 px-4 py-3">
+            <span
+              className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mb-2 ${
+                SECTION_TYPE_COLORS[section.section_type] ?? SECTION_TYPE_COLORS.custom
+              }`}
+            >
+              {section.section_label ?? section.section_type.charAt(0).toUpperCase() + section.section_type.slice(1)}
+            </span>
+            <p className="text-zinc-200 text-sm whitespace-pre-wrap leading-relaxed">
+              {section.content}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ─── Upload Widget ─── */
 
 function UploadWidget({
   songId,
@@ -470,4 +773,20 @@ function UploadWidget({
       )}
     </div>
   );
+}
+
+/* ─── Helpers ─── */
+
+function formatTime(seconds: number): string {
+  if (!seconds || !isFinite(seconds)) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 }
