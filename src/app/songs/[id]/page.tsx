@@ -195,7 +195,11 @@ export default function SongDetailPage() {
           onUpdate={fetchSong}
         />
       ) : (
-        <LyricsSection lyricSections={song.lyric_sections} />
+        <LyricsComposer
+          songId={song.id}
+          initialSections={song.lyric_sections}
+          onUpdate={fetchSong}
+        />
       )}
     </main>
   );
@@ -579,17 +583,407 @@ function VersionCard({
   );
 }
 
-/* ─── Lyrics Section ─── */
+/* ─── Lyrics Composer ─── */
 
-function LyricsSection({
-  lyricSections,
+interface EditableSection {
+  clientId: string;
+  id?: string;
+  section_type: string;
+  section_label: string | null;
+  content: string;
+  sort_order: number;
+}
+
+interface RevisionItem {
+  id: string;
+  snapshot: { sections: Array<{ section_type: string; section_label: string | null; content: string; sort_order: number }> };
+  created_at: string;
+  created_by_nickname: string;
+  revision_note: string | null;
+}
+
+const SECTION_TYPES: Array<{ value: string; label: string }> = [
+  { value: "verse", label: "Verse" },
+  { value: "chorus", label: "Chorus" },
+  { value: "pre-chorus", label: "Pre-Chorus" },
+  { value: "bridge", label: "Bridge" },
+  { value: "intro", label: "Intro" },
+  { value: "outro", label: "Outro" },
+  { value: "custom", label: "Custom" },
+];
+
+let clientIdCounter = 0;
+function newClientId() {
+  return `c_${++clientIdCounter}_${Date.now()}`;
+}
+
+function LyricsComposer({
+  songId,
+  initialSections,
+  onUpdate,
 }: {
-  lyricSections: LyricSectionDetail[];
+  songId: string;
+  initialSections: LyricSectionDetail[];
+  onUpdate: () => void;
 }) {
-  if (lyricSections.length === 0) {
+  const [sections, setSections] = useState<EditableSection[]>(() =>
+    initialSections.map((s) => ({
+      clientId: newClientId(),
+      id: s.id,
+      section_type: s.section_type,
+      section_label: s.section_label,
+      content: s.content,
+      sort_order: s.sort_order,
+    }))
+  );
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [readMode, setReadMode] = useState(false);
+  const [showTypePicker, setShowTypePicker] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [typeChangeId, setTypeChangeId] = useState<string | null>(null);
+  const [staleBanner, setStaleBanner] = useState<string | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestRevisionIdRef = useRef<string | null>(null);
+  const sectionsRef = useRef(sections);
+  sectionsRef.current = sections;
+
+  // Drag state — pointer-event based for mobile+desktop
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const dragNodeRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-save with debounce
+  const triggerSave = useCallback(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      performSave(sectionsRef.current);
+    }, 2000);
+  }, [songId]);
+
+  async function performSave(secs: EditableSection[]) {
+    setSaveStatus("saving");
+    try {
+      const res = await fetch(`/api/songs/${songId}/lyrics`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sections: secs.map((s, i) => ({
+            section_type: s.section_type,
+            section_label: s.section_label,
+            content: s.content,
+            sort_order: i,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        // Check for stale data
+        if (
+          latestRevisionIdRef.current &&
+          data.revision_id &&
+          latestRevisionIdRef.current !== data.revision_id
+        ) {
+          // We just saved, so update our ref
+        }
+        latestRevisionIdRef.current = data.revision_id;
+        // Update section IDs from server (matched by array position)
+        if (data.sections) {
+          const serverSections = data.sections as Array<{ id: string; sort_order: number }>;
+          setSections((prev) =>
+            prev.map((s, i) => ({
+              ...s,
+              id: serverSections[i]?.id ?? s.id,
+              sort_order: i,
+            }))
+          );
+        }
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus("idle"), 2000);
+      }
+    } catch {
+      setSaveStatus("idle");
+    }
+  }
+
+  function updateSection(clientId: string, changes: Partial<EditableSection>) {
+    setSections((prev) =>
+      prev.map((s) => (s.clientId === clientId ? { ...s, ...changes } : s))
+    );
+    triggerSave();
+  }
+
+  function addSection(type: string, label?: string) {
+    const newSection: EditableSection = {
+      clientId: newClientId(),
+      section_type: type,
+      section_label: type === "custom" ? (label || "Custom") : null,
+      content: "",
+      sort_order: sections.length,
+    };
+    setSections((prev) => [...prev, newSection]);
+    setShowTypePicker(false);
+    // Don't auto-save empty section — user will type and that triggers save
+  }
+
+  function deleteSection(clientId: string) {
+    setSections((prev) => prev.filter((s) => s.clientId !== clientId));
+    setMenuOpenId(null);
+    triggerSave();
+  }
+
+  function duplicateSection(clientId: string) {
+    setSections((prev) => {
+      const idx = prev.findIndex((s) => s.clientId === clientId);
+      if (idx === -1) return prev;
+      const source = prev[idx];
+      const copy: EditableSection = {
+        ...source,
+        clientId: newClientId(),
+        id: undefined,
+      };
+      const next = [...prev];
+      next.splice(idx + 1, 0, copy);
+      return next;
+    });
+    setMenuOpenId(null);
+    triggerSave();
+  }
+
+  function moveSection(fromIdx: number, toIdx: number) {
+    setSections((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next.map((s, i) => ({ ...s, sort_order: i }));
+    });
+    triggerSave();
+  }
+
+  function changeSectionType(clientId: string, newType: string, label?: string) {
+    updateSection(clientId, {
+      section_type: newType,
+      section_label: newType === "custom" ? (label || "Custom") : null,
+    });
+    setTypeChangeId(null);
+    setMenuOpenId(null);
+  }
+
+  // Drag handlers — pointer events for touch + mouse
+  // We track pointer position globally and hit-test card rects
+  function handlePointerDownOnHandle(e: React.PointerEvent, idx: number) {
+    e.preventDefault();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+
+    const isTouchDevice = e.pointerType === "touch";
+    if (isTouchDevice) {
+      longPressTimer.current = setTimeout(() => {
+        setDragIdx(idx);
+      }, 300);
+    } else {
+      setDragIdx(idx);
+    }
+  }
+
+  function handlePointerMoveOnHandle(e: React.PointerEvent) {
+    if (dragIdx === null) return;
+    // Hit-test which card the pointer is over
+    const y = e.clientY;
+    let overIdx: number | null = null;
+    dragNodeRefs.current.forEach((el, idx) => {
+      const rect = el.getBoundingClientRect();
+      if (y >= rect.top && y <= rect.bottom) {
+        overIdx = idx;
+      }
+    });
+    if (overIdx !== null && overIdx !== dragIdx) {
+      setDragOverIdx(overIdx);
+    }
+  }
+
+  function handlePointerUpOnHandle() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    if (dragIdx !== null && dragOverIdx !== null && dragIdx !== dragOverIdx) {
+      const fromIdx = dragIdx;
+      const toIdx = dragOverIdx;
+      setSections((prev) => {
+        const next = [...prev];
+        const [moved] = next.splice(fromIdx, 1);
+        next.splice(toIdx, 0, moved);
+        return next.map((s, i) => ({ ...s, sort_order: i }));
+      });
+      triggerSave();
+    }
+    setDragIdx(null);
+    setDragOverIdx(null);
+  }
+
+  function handlePointerCancelOnHandle() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    setDragIdx(null);
+    setDragOverIdx(null);
+  }
+
+  // Stale data check
+  useEffect(() => {
+    if (!showHistory) {
+      // Periodically check for stale data (every 30s)
+      const interval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/songs/${songId}/lyrics/revisions`);
+          const data = await res.json();
+          const revisions = data.revisions as RevisionItem[];
+          if (revisions && revisions.length > 0) {
+            const latest = revisions[0];
+            if (
+              latestRevisionIdRef.current &&
+              latest.id !== latestRevisionIdRef.current
+            ) {
+              setStaleBanner(
+                `Lyrics were updated by ${latest.created_by_nickname}`
+              );
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [songId, showHistory]);
+
+  // Initialize revision ID
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/songs/${songId}/lyrics/revisions`);
+        const data = await res.json();
+        const revisions = data.revisions as RevisionItem[];
+        if (revisions && revisions.length > 0) {
+          latestRevisionIdRef.current = revisions[0].id;
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, [songId]);
+
+  // Read Mode
+  if (readMode) {
     return (
       <section>
-        <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-8 text-center">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-medium text-zinc-400">Read Mode</h2>
+          <button
+            onClick={() => setReadMode(false)}
+            className="text-sm text-zinc-300 border border-zinc-600 rounded-lg px-3 py-1.5 hover:bg-zinc-800 transition"
+          >
+            Edit
+          </button>
+        </div>
+        {sections.length === 0 ? (
+          <p className="text-zinc-500 text-center py-8">No lyrics yet</p>
+        ) : (
+          <div className="flex flex-col gap-5">
+            {sections.map((section) => (
+              <div key={section.clientId}>
+                <span
+                  className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mb-2 ${
+                    SECTION_TYPE_COLORS[section.section_type] ?? SECTION_TYPE_COLORS.custom
+                  }`}
+                >
+                  {section.section_label ?? section.section_type.charAt(0).toUpperCase() + section.section_type.slice(1)}
+                </span>
+                <p className="text-zinc-100 text-xl whitespace-pre-wrap leading-relaxed font-light">
+                  {section.content || "\u00A0"}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  // Revision History modal
+  if (showHistory) {
+    return (
+      <RevisionHistory
+        songId={songId}
+        onClose={() => setShowHistory(false)}
+        onRestore={(restoredSections, revisionId) => {
+          setSections(
+            restoredSections.map((s, i) => ({
+              clientId: newClientId(),
+              section_type: s.section_type,
+              section_label: s.section_label,
+              content: s.content,
+              sort_order: i,
+            }))
+          );
+          latestRevisionIdRef.current = revisionId;
+          setStaleBanner(null);
+          setShowHistory(false);
+          onUpdate();
+        }}
+      />
+    );
+  }
+
+  return (
+    <section>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-zinc-500">
+            {saveStatus === "saving"
+              ? "Saving..."
+              : saveStatus === "saved"
+              ? "Saved"
+              : ""}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowHistory(true)}
+            className="text-xs text-zinc-400 hover:text-white transition px-2 py-1"
+            aria-label="Revision history"
+          >
+            History
+          </button>
+          <button
+            onClick={() => setReadMode(true)}
+            className="text-sm text-zinc-300 border border-zinc-600 rounded-lg px-3 py-1.5 hover:bg-zinc-800 transition"
+          >
+            Read
+          </button>
+        </div>
+      </div>
+
+      {/* Stale data banner */}
+      {staleBanner && (
+        <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-4 py-2.5 mb-3 flex items-center justify-between">
+          <p className="text-amber-300 text-xs">{staleBanner}. Your next save will overwrite.</p>
+          <button
+            onClick={() => setStaleBanner(null)}
+            className="text-amber-300/60 hover:text-amber-300 transition text-xs ml-2 shrink-0"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Sections */}
+      {sections.length === 0 ? (
+        <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-8 text-center mb-3">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="32"
@@ -607,8 +1001,289 @@ function LyricsSection({
           </svg>
           <p className="text-zinc-400 text-sm mb-1">No lyrics yet</p>
           <p className="text-zinc-500 text-xs">
-            Start writing to build your song structure
+            Add a section below to start writing
           </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 mb-3">
+          {sections.map((section, idx) => (
+            <div
+              key={section.clientId}
+              ref={(el) => {
+                if (el) dragNodeRefs.current.set(idx, el);
+                else dragNodeRefs.current.delete(idx);
+              }}
+              className={`rounded-lg border px-4 py-3 transition-colors ${
+                dragOverIdx === idx && dragIdx !== idx
+                  ? "border-white/40 bg-zinc-700/50"
+                  : dragIdx === idx
+                  ? "border-white/30 bg-zinc-700/30"
+                  : "border-zinc-700 bg-zinc-800/50"
+              } ${dragIdx === idx ? "opacity-50" : ""}`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                {/* Drag handle — all pointer events on this element */}
+                <span
+                  onPointerDown={(e) => handlePointerDownOnHandle(e, idx)}
+                  onPointerMove={handlePointerMoveOnHandle}
+                  onPointerUp={handlePointerUpOnHandle}
+                  onPointerCancel={handlePointerCancelOnHandle}
+                  className="cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-400 transition select-none touch-none"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="9" cy="6" r="1.5" />
+                    <circle cx="15" cy="6" r="1.5" />
+                    <circle cx="9" cy="12" r="1.5" />
+                    <circle cx="15" cy="12" r="1.5" />
+                    <circle cx="9" cy="18" r="1.5" />
+                    <circle cx="15" cy="18" r="1.5" />
+                  </svg>
+                </span>
+
+                {/* Section type badge */}
+                {typeChangeId === section.clientId ? (
+                  <div className="flex flex-wrap gap-1">
+                    {SECTION_TYPES.map((t) => (
+                      <button
+                        key={t.value}
+                        onClick={() => {
+                          if (t.value === "custom") {
+                            const label = prompt("Custom section label:");
+                            if (label) changeSectionType(section.clientId, t.value, label);
+                            else setTypeChangeId(null);
+                          } else {
+                            changeSectionType(section.clientId, t.value);
+                          }
+                        }}
+                        className={`text-xs px-2 py-0.5 rounded-full transition ${
+                          SECTION_TYPE_COLORS[t.value] ?? SECTION_TYPE_COLORS.custom
+                        } ${section.section_type === t.value ? "ring-1 ring-white/40" : "opacity-70 hover:opacity-100"}`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setTypeChangeId(null)}
+                      className="text-zinc-500 text-xs hover:text-white transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <span
+                    className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${
+                      SECTION_TYPE_COLORS[section.section_type] ?? SECTION_TYPE_COLORS.custom
+                    }`}
+                  >
+                    {section.section_label ?? section.section_type.charAt(0).toUpperCase() + section.section_type.slice(1)}
+                  </span>
+                )}
+
+                {/* Menu */}
+                <div className="ml-auto relative">
+                  <button
+                    onClick={() => setMenuOpenId(menuOpenId === section.clientId ? null : section.clientId)}
+                    className="text-zinc-500 hover:text-white transition p-1"
+                    aria-label="Section options"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="1" />
+                      <circle cx="19" cy="12" r="1" />
+                      <circle cx="5" cy="12" r="1" />
+                    </svg>
+                  </button>
+                  {menuOpenId === section.clientId && (
+                    <div className="absolute right-0 top-8 z-10 bg-zinc-800 border border-zinc-600 rounded-lg shadow-lg py-1 min-w-[140px]">
+                      {idx > 0 && (
+                        <button
+                          onClick={() => {
+                            moveSection(idx, idx - 1);
+                            setMenuOpenId(null);
+                          }}
+                          className="w-full text-left px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700 transition"
+                        >
+                          Move Up
+                        </button>
+                      )}
+                      {idx < sections.length - 1 && (
+                        <button
+                          onClick={() => {
+                            moveSection(idx, idx + 1);
+                            setMenuOpenId(null);
+                          }}
+                          className="w-full text-left px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700 transition"
+                        >
+                          Move Down
+                        </button>
+                      )}
+                      <button
+                        onClick={() => duplicateSection(section.clientId)}
+                        className="w-full text-left px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700 transition"
+                      >
+                        Duplicate
+                      </button>
+                      <button
+                        onClick={() => {
+                          setTypeChangeId(section.clientId);
+                          setMenuOpenId(null);
+                        }}
+                        className="w-full text-left px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700 transition"
+                      >
+                        Change Type
+                      </button>
+                      <button
+                        onClick={() => deleteSection(section.clientId)}
+                        className="w-full text-left px-3 py-1.5 text-sm text-red-400 hover:bg-zinc-700 transition"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Content textarea */}
+              <textarea
+                value={section.content}
+                onChange={(e) => updateSection(section.clientId, { content: e.target.value })}
+                placeholder="Write lyrics..."
+                rows={3}
+                className="w-full bg-transparent text-zinc-200 text-sm placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Section */}
+      {showTypePicker ? (
+        <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3">
+          <p className="text-zinc-400 text-xs mb-2">Choose section type:</p>
+          <div className="flex flex-wrap gap-2">
+            {SECTION_TYPES.map((t) => (
+              <button
+                key={t.value}
+                onClick={() => {
+                  if (t.value === "custom") {
+                    const label = prompt("Custom section label:");
+                    if (label) addSection(t.value, label);
+                  } else {
+                    addSection(t.value);
+                  }
+                }}
+                className={`text-xs px-3 py-1.5 rounded-full transition ${
+                  SECTION_TYPE_COLORS[t.value] ?? SECTION_TYPE_COLORS.custom
+                } hover:opacity-80`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowTypePicker(false)}
+            className="text-zinc-500 text-xs hover:text-white transition mt-2"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowTypePicker(true)}
+          className="w-full rounded-lg border border-dashed border-zinc-600 text-zinc-400 py-3 text-sm hover:border-zinc-400 hover:text-zinc-300 transition"
+        >
+          + Add Section
+        </button>
+      )}
+    </section>
+  );
+}
+
+/* ─── Revision History ─── */
+
+function RevisionHistory({
+  songId,
+  onClose,
+  onRestore,
+}: {
+  songId: string;
+  onClose: () => void;
+  onRestore: (
+    sections: Array<{ section_type: string; section_label: string | null; content: string; sort_order: number }>,
+    revisionId: string
+  ) => void;
+}) {
+  const [revisions, setRevisions] = useState<RevisionItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [previewRevision, setPreviewRevision] = useState<RevisionItem | null>(null);
+  const [restoring, setRestoring] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const res = await fetch(`/api/songs/${songId}/lyrics/revisions`);
+      const data = await res.json();
+      setRevisions(data.revisions ?? []);
+      setLoading(false);
+    })();
+  }, [songId]);
+
+  async function handleRestore(revisionId: string) {
+    setRestoring(true);
+    const res = await fetch(`/api/songs/${songId}/lyrics/revisions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ revisionId }),
+    });
+    const data = await res.json();
+    if (res.ok && data.sections) {
+      onRestore(
+        (data.sections as Array<{ section_type: string; section_label: string | null; content: string; sort_order: number }>),
+        data.revision_id
+      );
+    }
+    setRestoring(false);
+  }
+
+  // Preview mode
+  if (previewRevision) {
+    const snap = previewRevision.snapshot;
+    return (
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => setPreviewRevision(null)}
+            className="text-zinc-400 hover:text-white transition text-sm"
+          >
+            &larr; Back to history
+          </button>
+          <button
+            onClick={() => handleRestore(previewRevision.id)}
+            disabled={restoring}
+            className="rounded-lg bg-white text-black font-semibold py-1.5 px-3 text-xs hover:bg-zinc-200 transition disabled:opacity-50"
+          >
+            {restoring ? "Restoring..." : "Restore this version"}
+          </button>
+        </div>
+        <p className="text-zinc-500 text-xs mb-3">
+          {formatDateTime(previewRevision.created_at)} by {previewRevision.created_by_nickname}
+          {previewRevision.revision_note && (
+            <span className="italic ml-1">— {previewRevision.revision_note}</span>
+          )}
+        </p>
+        <div className="flex flex-col gap-3">
+          {(snap.sections ?? []).map((s, i) => (
+            <div key={i} className="rounded-lg bg-zinc-800/50 border border-zinc-700 px-4 py-3">
+              <span
+                className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mb-2 ${
+                  SECTION_TYPE_COLORS[s.section_type] ?? SECTION_TYPE_COLORS.custom
+                }`}
+              >
+                {s.section_label ?? s.section_type.charAt(0).toUpperCase() + s.section_type.slice(1)}
+              </span>
+              <p className="text-zinc-200 text-sm whitespace-pre-wrap leading-relaxed">
+                {s.content || "\u00A0"}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
     );
@@ -616,22 +1291,51 @@ function LyricsSection({
 
   return (
     <section>
-      <div className="flex flex-col gap-3">
-        {lyricSections.map((section) => (
-          <div key={section.id} className="rounded-lg bg-zinc-800/50 border border-zinc-700 px-4 py-3">
-            <span
-              className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mb-2 ${
-                SECTION_TYPE_COLORS[section.section_type] ?? SECTION_TYPE_COLORS.custom
-              }`}
-            >
-              {section.section_label ?? section.section_type.charAt(0).toUpperCase() + section.section_type.slice(1)}
-            </span>
-            <p className="text-zinc-200 text-sm whitespace-pre-wrap leading-relaxed">
-              {section.content}
-            </p>
-          </div>
-        ))}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-medium text-zinc-400">Revision History</h2>
+        <button
+          onClick={onClose}
+          className="text-sm text-zinc-300 border border-zinc-600 rounded-lg px-3 py-1.5 hover:bg-zinc-800 transition"
+        >
+          Back to Editor
+        </button>
       </div>
+
+      {loading ? (
+        <p className="text-zinc-500 text-sm text-center py-8">Loading...</p>
+      ) : revisions.length === 0 ? (
+        <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-8 text-center">
+          <p className="text-zinc-400 text-sm">No revisions yet</p>
+          <p className="text-zinc-500 text-xs mt-1">
+            Revisions are created automatically when you save lyrics
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {revisions.map((rev, idx) => (
+            <button
+              key={rev.id}
+              onClick={() => setPreviewRevision(rev)}
+              className="w-full text-left rounded-lg bg-zinc-800/50 border border-zinc-700 px-4 py-3 hover:border-zinc-500 transition"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white text-sm">
+                    {idx === 0 ? "Latest" : formatDateTime(rev.created_at)}
+                  </p>
+                  <p className="text-zinc-500 text-xs mt-0.5">
+                    by {rev.created_by_nickname}
+                    {rev.revision_note && <span className="italic"> — {rev.revision_note}</span>}
+                  </p>
+                </div>
+                <span className="text-zinc-500 text-xs">
+                  {rev.snapshot.sections?.length ?? 0} sections
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -788,5 +1492,14 @@ function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
+  });
+}
+
+function formatDateTime(dateStr: string): string {
+  return new Date(dateStr).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
 }
