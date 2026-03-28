@@ -198,7 +198,7 @@ export default function SongsPage() {
           </div>
 
           {/* Filter pills + Sort */}
-          <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex flex-col gap-2 mb-4">
             <div className="flex gap-1.5 overflow-x-auto">
               {FILTER_OPTIONS.map((opt) => (
                 <button
@@ -217,7 +217,7 @@ export default function SongsPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="shrink-0 text-xs bg-surface border border-border text-muted rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-accent/40"
+              className="self-end text-xs bg-surface border border-border text-muted rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-accent/40"
             >
               <option value="updated">Last Updated</option>
               <option value="title">Title A–Z</option>
