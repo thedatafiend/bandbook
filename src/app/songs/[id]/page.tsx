@@ -648,9 +648,11 @@ function LyricsComposer({
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
 
-  // Drag state
+  // Drag state — pointer-event based for mobile+desktop
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const dragNodeRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-save with debounce
   const triggerSave = useCallback(() => {
@@ -749,6 +751,16 @@ function LyricsComposer({
     triggerSave();
   }
 
+  function moveSection(fromIdx: number, toIdx: number) {
+    setSections((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next.map((s, i) => ({ ...s, sort_order: i }));
+    });
+    triggerSave();
+  }
+
   function changeSectionType(clientId: string, newType: string, label?: string) {
     updateSection(clientId, {
       section_type: newType,
@@ -758,31 +770,66 @@ function LyricsComposer({
     setMenuOpenId(null);
   }
 
-  // Drag handlers
-  function handleDragStart(idx: number) {
-    setDragIdx(idx);
-  }
-
-  function handleDragOver(e: React.DragEvent, idx: number) {
+  // Drag handlers — pointer events for touch + mouse
+  // We track pointer position globally and hit-test card rects
+  function handlePointerDownOnHandle(e: React.PointerEvent, idx: number) {
     e.preventDefault();
-    setDragOverIdx(idx);
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+
+    const isTouchDevice = e.pointerType === "touch";
+    if (isTouchDevice) {
+      longPressTimer.current = setTimeout(() => {
+        setDragIdx(idx);
+      }, 300);
+    } else {
+      setDragIdx(idx);
+    }
   }
 
-  function handleDrop(idx: number) {
-    if (dragIdx === null || dragIdx === idx) {
-      setDragIdx(null);
-      setDragOverIdx(null);
-      return;
-    }
-    setSections((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(dragIdx, 1);
-      next.splice(idx, 0, moved);
-      return next.map((s, i) => ({ ...s, sort_order: i }));
+  function handlePointerMoveOnHandle(e: React.PointerEvent) {
+    if (dragIdx === null) return;
+    // Hit-test which card the pointer is over
+    const y = e.clientY;
+    let overIdx: number | null = null;
+    dragNodeRefs.current.forEach((el, idx) => {
+      const rect = el.getBoundingClientRect();
+      if (y >= rect.top && y <= rect.bottom) {
+        overIdx = idx;
+      }
     });
+    if (overIdx !== null && overIdx !== dragIdx) {
+      setDragOverIdx(overIdx);
+    }
+  }
+
+  function handlePointerUpOnHandle() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    if (dragIdx !== null && dragOverIdx !== null && dragIdx !== dragOverIdx) {
+      const fromIdx = dragIdx;
+      const toIdx = dragOverIdx;
+      setSections((prev) => {
+        const next = [...prev];
+        const [moved] = next.splice(fromIdx, 1);
+        next.splice(toIdx, 0, moved);
+        return next.map((s, i) => ({ ...s, sort_order: i }));
+      });
+      triggerSave();
+    }
     setDragIdx(null);
     setDragOverIdx(null);
-    triggerSave();
+  }
+
+  function handlePointerCancelOnHandle() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    setDragIdx(null);
+    setDragOverIdx(null);
   }
 
   // Stale data check
@@ -962,23 +1009,27 @@ function LyricsComposer({
           {sections.map((section, idx) => (
             <div
               key={section.clientId}
-              draggable
-              onDragStart={() => handleDragStart(idx)}
-              onDragOver={(e) => handleDragOver(e, idx)}
-              onDrop={() => handleDrop(idx)}
-              onDragEnd={() => {
-                setDragIdx(null);
-                setDragOverIdx(null);
+              ref={(el) => {
+                if (el) dragNodeRefs.current.set(idx, el);
+                else dragNodeRefs.current.delete(idx);
               }}
               className={`rounded-lg border px-4 py-3 transition-colors ${
                 dragOverIdx === idx && dragIdx !== idx
                   ? "border-white/40 bg-zinc-700/50"
+                  : dragIdx === idx
+                  ? "border-white/30 bg-zinc-700/30"
                   : "border-zinc-700 bg-zinc-800/50"
               } ${dragIdx === idx ? "opacity-50" : ""}`}
             >
               <div className="flex items-center gap-2 mb-2">
-                {/* Drag handle */}
-                <span className="cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-400 transition select-none touch-none">
+                {/* Drag handle — all pointer events on this element */}
+                <span
+                  onPointerDown={(e) => handlePointerDownOnHandle(e, idx)}
+                  onPointerMove={handlePointerMoveOnHandle}
+                  onPointerUp={handlePointerUpOnHandle}
+                  onPointerCancel={handlePointerCancelOnHandle}
+                  className="cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-400 transition select-none touch-none"
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <circle cx="9" cy="6" r="1.5" />
                     <circle cx="15" cy="6" r="1.5" />
@@ -1043,6 +1094,28 @@ function LyricsComposer({
                   </button>
                   {menuOpenId === section.clientId && (
                     <div className="absolute right-0 top-8 z-10 bg-zinc-800 border border-zinc-600 rounded-lg shadow-lg py-1 min-w-[140px]">
+                      {idx > 0 && (
+                        <button
+                          onClick={() => {
+                            moveSection(idx, idx - 1);
+                            setMenuOpenId(null);
+                          }}
+                          className="w-full text-left px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700 transition"
+                        >
+                          Move Up
+                        </button>
+                      )}
+                      {idx < sections.length - 1 && (
+                        <button
+                          onClick={() => {
+                            moveSection(idx, idx + 1);
+                            setMenuOpenId(null);
+                          }}
+                          className="w-full text-left px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700 transition"
+                        >
+                          Move Down
+                        </button>
+                      )}
                       <button
                         onClick={() => duplicateSection(section.clientId)}
                         className="w-full text-left px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700 transition"
