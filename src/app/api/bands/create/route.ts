@@ -6,10 +6,11 @@ import type { Band, Member } from "@/lib/supabase/types";
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { bandName, passcode, nickname } = body as {
+  const { bandName, passcode, nickname, email } = body as {
     bandName?: string;
     passcode?: string;
     nickname?: string;
+    email?: string;
   };
 
   if (!bandName?.trim()) {
@@ -23,6 +24,9 @@ export async function POST(request: Request) {
   }
   if (!nickname?.trim()) {
     return NextResponse.json({ error: "Nickname is required" }, { status: 400 });
+  }
+  if (!email?.trim() || !email.includes("@")) {
+    return NextResponse.json({ error: "A valid email is required" }, { status: 400 });
   }
 
   const supabase = await createClient();
@@ -40,7 +44,7 @@ export async function POST(request: Request) {
 
   const { data: member, error: memberError } = await supabase
     .from("members")
-    .insert({ band_id: band.id, nickname: nickname.trim() })
+    .insert({ band_id: band.id, nickname: nickname.trim(), email: email.trim().toLowerCase() })
     .select()
     .single<Member>();
 

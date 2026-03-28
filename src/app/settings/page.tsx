@@ -3,6 +3,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
+interface AuthMember {
+  id: string;
+  email: string;
+}
+
 interface BandInfo {
   name: string;
   invite_token: string;
@@ -18,6 +23,7 @@ interface MemberInfo {
 export default function SettingsPage() {
   const router = useRouter();
   const [band, setBand] = useState<BandInfo | null>(null);
+  const [currentMember, setCurrentMember] = useState<AuthMember | null>(null);
   const [members, setMembers] = useState<MemberInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,6 +36,7 @@ export default function SettingsPage() {
     const membersData = await membersRes.json();
 
     setBand(authData.band);
+    setCurrentMember(authData.member ? { id: authData.member.id, email: authData.member.email } : null);
     setMembers(membersData.members ?? []);
     setLoading(false);
   }, []);
@@ -72,6 +79,9 @@ export default function SettingsPage() {
       </header>
 
       <div className="flex flex-col gap-8">
+        <RecoveryEmailSection
+          currentEmail={currentMember?.email ?? ""}
+        />
         <InviteLinkSection
           inviteToken={band?.invite_token ?? ""}
           onRegenerate={(newToken) =>
@@ -82,6 +92,77 @@ export default function SettingsPage() {
         <MembersSection members={members} />
       </div>
     </main>
+  );
+}
+
+function RecoveryEmailSection({
+  currentEmail,
+}: {
+  currentEmail: string;
+}) {
+  const [email, setEmail] = useState(currentEmail);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setEmail(currentEmail);
+  }, [currentEmail]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setSuccess(false);
+    setLoading(true);
+
+    const res = await fetch("/api/members/email", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await res.json();
+    setLoading(false);
+
+    if (!res.ok) {
+      setError(data.error ?? "Something went wrong");
+      return;
+    }
+
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 3000);
+  }
+
+  return (
+    <section>
+      <h2 className="text-lg font-semibold mb-3">Recovery Email</h2>
+      <p className="text-zinc-400 text-sm mb-4">
+        This email lets you get back in if you lose your session (e.g. cleared
+        cookies or new device).
+      </p>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <input
+          type="email"
+          placeholder="Your email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+        />
+
+        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {success && <p className="text-green-400 text-sm">Email updated!</p>}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-lg border border-zinc-600 text-zinc-200 font-semibold py-2.5 px-4 text-sm hover:bg-zinc-800 transition disabled:opacity-50"
+        >
+          {loading ? "Saving..." : "Update Email"}
+        </button>
+      </form>
+    </section>
   );
 }
 

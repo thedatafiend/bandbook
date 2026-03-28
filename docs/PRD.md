@@ -63,7 +63,7 @@ The data model centers on five primary entities: Bands, Members, Songs, Versions
 | Entity | Key Fields | Relationships |
 |--------|-----------|---------------|
 | **Band** | `id`, `name`, `passcode_hash`, `invite_token`, `created_at` | Has many Songs; has many Members |
-| **Member** | `id`, `band_id`, `nickname`, `session_token`, `created_at`, `last_active_at` | Belongs to Band; referenced by Versions and Lyric Revisions |
+| **Member** | `id`, `band_id`, `nickname`, `email`, `session_token`, `created_at`, `last_active_at` | Belongs to Band; referenced by Versions and Lyric Revisions |
 | **Song** | `id`, `band_id`, `title`, `status` (draft/in-progress/finished), `current_version_id` (nullable), `created_at`, `updated_at`, `created_by_member_id` | Belongs to Band; has many Versions and Lyric Sections |
 | **Version (Audio)** | `id`, `song_id`, `version_number`, `label`, `audio_url`, `audio_duration`, `notes`, `is_current`, `created_at`, `created_by_member_id` | Belongs to Song; belongs to Member |
 | **Lyric Section** | `id`, `song_id`, `section_type` (verse/chorus/bridge/pre-chorus/outro/intro/custom), `section_label`, `content`, `sort_order`, `updated_at`, `updated_by_member_id` | Belongs to Song |
@@ -76,7 +76,7 @@ The data model centers on five primary entities: Bands, Members, Songs, Versions
 - Audio Versions are **append-only**; recordings are never deleted, only superseded.
 - Lyric Sections are ordered by `sort_order` and can be reordered via drag-and-drop without changing content.
 - Lyric Revisions store a **full snapshot** of the lyric sheet (all sections + order) each time a save occurs. This provides a lightweight undo/history without the complexity of real-time collaboration.
-- Members are lightweight identity records (nickname + session). They are not full user accounts — no email or password required.
+- Members are lightweight identity records (nickname + email + session). They are not full user accounts — no password or email verification required. Email is collected at join time to enable session recovery across devices and browser resets.
 - Audio files are stored in cloud object storage (e.g. Supabase Storage) with the Version record holding a reference URL.
 
 ---
@@ -187,18 +187,20 @@ The mechanism for band members to access the shared workspace. Members are ident
 
 #### Requirements
 
-1. A band workspace is created by one member who sets a band name, a simple passcode (4–8 characters), and their own nickname.
-2. A shareable invite link is generated that, when opened, prompts for the passcode and a nickname.
-3. On successful entry, the device is granted a persistent session token (stored in browser; no login on return visits). The nickname is associated with the session.
-4. Members can change their nickname from a simple profile/settings screen.
+1. A band workspace is created by one member who sets a band name, a simple passcode (4–8 characters), their email address, and their own nickname.
+2. A shareable invite link is generated that, when opened, prompts for the passcode, a nickname, and an email address.
+3. On successful entry, the device is granted a persistent session token (stored in browser; no login on return visits). The nickname and email are associated with the session.
+4. Members can change their nickname and email from a simple profile/settings screen.
 5. The band creator can regenerate the invite link or change the passcode at any time.
 6. All actions (uploads, lyric edits, version changes) are attributed to the member's nickname for traceability.
 7. A "Members" view shows all members who have joined the band with their nicknames and last active date.
+8. A "Return to my bands" recovery flow on the landing page allows a member to enter their email, see all bands they belong to, verify with the band passcode, and restore their session. The session token is rotated on recovery to invalidate any prior session.
 
 #### Acceptance Criteria
 
 - A new member can go from receiving a link to browsing the catalog in under 30 seconds.
 - Session persists across browser restarts and phone reboots.
+- A member who has lost their session (cleared cookies, new device) can recover access via their email and band passcode without rejoining as a new member.
 - Changing the passcode does not invalidate existing sessions.
 - Nicknames appear on uploaded versions, lyric revisions, and song creation records.
 - Duplicate nicknames are allowed (no uniqueness constraint) — this is casual identity, not auth.
@@ -225,7 +227,7 @@ The mechanism for band members to access the shared workspace. Members are ident
 - **Audio streaming:** serve audio via signed URLs with range-request support so playback starts before full download.
 - **Lyric revision history:** each auto-save writes a new row to the `lyric_revisions` table with a full JSON snapshot of all sections and their order. Snapshots are lightweight (text-only, no binary) so storage overhead is minimal.
 - **Conflict handling (V1):** last-write-wins with a stale-data banner. When a member loads the lyrics editor, the current revision ID is noted. On save, if the latest revision ID has changed, a banner warns that someone else has made edits. The save still proceeds (last-write-wins) but the member can review the other revision from history.
-- **Member identity:** lightweight — a nickname stored with a session token in the browser. No email, password, or OAuth. The Member record exists primarily for attribution, not access control.
+- **Member identity:** lightweight — a nickname and email stored with a session token in the browser. No password, email verification, or OAuth. The email enables session recovery (enter email + band passcode to restore access). The Member record exists primarily for attribution and recovery, not access control.
 - **Storage quota:** enforced at the Supabase Storage bucket level. The app checks remaining quota before upload and shows a warning when approaching the 10 GB limit.
 
 ---
@@ -312,6 +314,7 @@ Add power features for bands with a growing catalog.
 | 3 | Should the app support video recordings in addition to audio? | **Not in V1.** Video support is deferred to Phase 3 as a future enhancement. |
 | 4 | What is the realistic storage budget per band? | **10 GB per band** on the free tier. Paid tiers with expanded storage can be introduced in Phase 3. |
 | 5 | Is real-time collaborative lyric editing required for V1? | **No.** V1 uses last-write-wins with a stale-data banner. Automatic lyric revision history provides recovery. Real-time CRDT editing is a Phase 2 target. |
+| 6 | Should member email be required or optional? | **Required.** Email is collected at join/create time to guarantee session recovery. Without it, a member who loses their cookies has no way back. Email is not verified and no emails are sent — it is simply a recovery key. The band passcode authenticates recovery requests. This keeps identity lightweight while solving the session loss problem. |
 
 ---
 
