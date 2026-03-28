@@ -31,16 +31,28 @@ export async function GET(
     .eq("song_id", id)
     .order("version_number", { ascending: false });
 
-  // Fetch member nicknames for version attribution
-  const memberIds = [
-    ...new Set((versions ?? []).map((v) => v.created_by_member_id)),
-  ];
+  // Fetch lyric sections ordered by sort_order
+  const { data: lyricSections } = await supabase
+    .from("lyric_sections")
+    .select("id, section_type, section_label, content, sort_order, updated_at, updated_by_member_id")
+    .eq("song_id", id)
+    .order("sort_order", { ascending: true });
+
+  // Collect all member IDs for attribution
+  const memberIds = new Set<string>();
+  for (const v of versions ?? []) {
+    memberIds.add(v.created_by_member_id);
+  }
+  for (const s of lyricSections ?? []) {
+    if (s.updated_by_member_id) memberIds.add(s.updated_by_member_id);
+  }
+
   let memberMap: Record<string, string> = {};
-  if (memberIds.length > 0) {
+  if (memberIds.size > 0) {
     const { data: members } = await supabase
       .from("members")
       .select("id, nickname")
-      .in("id", memberIds);
+      .in("id", [...memberIds]);
     if (members) {
       for (const m of members) {
         memberMap[m.id] = m.nickname;
@@ -48,12 +60,36 @@ export async function GET(
     }
   }
 
-  const versionsWithNicknames = (versions ?? []).map((v) => ({
-    ...v,
-    created_by_nickname: memberMap[v.created_by_member_id] ?? "Unknown",
+  // Generate signed URLs for audio playback (1 hour expiry)
+  const versionsWithDetails = await Promise.all(
+    (versions ?? []).map(async (v) => {
+      let signedAudioUrl: string | null = null;
+      if (v.audio_url) {
+        const { data: signedData } = await supabase.storage
+          .from("audio")
+          .createSignedUrl(v.audio_url, 3600);
+        signedAudioUrl = signedData?.signedUrl ?? null;
+      }
+      return {
+        ...v,
+        signed_audio_url: signedAudioUrl,
+        created_by_nickname: memberMap[v.created_by_member_id] ?? "Unknown",
+      };
+    })
+  );
+
+  const lyricSectionsWithNicknames = (lyricSections ?? []).map((s) => ({
+    ...s,
+    updated_by_nickname: s.updated_by_member_id
+      ? memberMap[s.updated_by_member_id] ?? "Unknown"
+      : null,
   }));
 
   return NextResponse.json({
-    song: { ...song, versions: versionsWithNicknames },
+    song: {
+      ...song,
+      versions: versionsWithDetails,
+      lyric_sections: lyricSectionsWithNicknames,
+    },
   });
 }
