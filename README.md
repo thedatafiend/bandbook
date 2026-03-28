@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BandBook
+
+A collaborative songwriting workspace for bands. Upload rehearsal recordings, compose structured lyrics, manage song versions, and keep your entire catalog in one shared space — all from your phone.
+
+## What is BandBook?
+
+BandBook replaces the mess of voice memos, group chats, and shared drives that most bands use to track their songs. Create a band, invite your members with a simple link + passcode, and start building your catalog together.
+
+No accounts or email signups required — just pick a nickname and you're in.
+
+## Features
+
+### Song Catalog
+
+Browse, search, and filter your band's songs in one place. Each song card shows its status (Draft, In Progress, Finished), how many recorded versions exist, whether lyrics have been added, and when it was last updated. Sort by title, date created, or last updated.
+
+### Audio Versions
+
+Upload rehearsal recordings or demos in common audio formats (.m4a, .mp3, .wav, .aac, .ogg) up to 500 MB. Every take is preserved as a numbered version with optional labels and notes, so you never lose a good idea. Mark any version as the "current" take and play it back directly in the app.
+
+### Lyrics Composer
+
+Write lyrics with structured sections — verses, choruses, bridges, pre-choruses, intros, outros, or custom sections. Reorder them as the song evolves. Every edit is saved as a revision with a full history, so you can always look back at where a song came from.
+
+### Band Management
+
+Create a band with a name and passcode, then share an invite link with your bandmates. View who's in the band, when they joined, and when they were last active. Regenerate invite links or change the passcode from settings at any time.
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- [Node.js](https://nodejs.org/) 18+
+- A [Supabase](https://supabase.com/) project
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Clone the repo and install dependencies:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```bash
+   git clone <repo-url>
+   cd bandbook
+   npm install
+   ```
 
-## Learn More
+2. Create a `.env.local` file with your Supabase credentials:
 
-To learn more about Next.js, take a look at the following resources:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. Apply the database migrations from `supabase/migrations/` to your Supabase project.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. Start the development server:
 
-## Deploy on Vercel
+   ```bash
+   npm run dev
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+5. Open [http://localhost:3000](http://localhost:3000) and create your first band.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Tech Stack
+
+- **Framework** — Next.js (App Router)
+- **Language** — TypeScript
+- **Styling** — Tailwind CSS
+- **Database** — PostgreSQL via Supabase
+- **Storage** — Supabase Storage (audio files)
+- **Auth** — Session tokens with bcrypt-hashed passcodes (no email/password)
