@@ -27,9 +27,9 @@ type SortOption = "updated" | "title" | "created";
 type StatusFilter = "all" | "draft" | "in-progress" | "finished";
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-zinc-700 text-zinc-300",
+  draft: "bg-surface-alt text-muted",
   "in-progress": "bg-amber-900/60 text-amber-300",
-  finished: "bg-green-900/60 text-green-300",
+  finished: "bg-emerald-900/60 text-emerald-300",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -57,6 +57,7 @@ export default function SongsPage() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("updated");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [showSort, setShowSort] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -130,14 +131,14 @@ export default function SongsPage() {
         <div>
           <h1 className="text-2xl font-bold">{band?.name ?? "Loading..."}</h1>
           {member && (
-            <p className="text-zinc-400 text-sm">
+            <p className="text-muted text-sm">
               Logged in as {member.nickname}
             </p>
           )}
         </div>
         <button
           onClick={() => router.push("/settings")}
-          className="text-zinc-400 hover:text-white transition p-2"
+          className="text-muted hover:text-foreground transition p-2"
           aria-label="Band settings"
         >
           <svg
@@ -159,10 +160,10 @@ export default function SongsPage() {
 
       {!loading && songs.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center text-center">
-          <p className="text-zinc-400 mb-6">No songs yet. Start creating!</p>
+          <p className="text-muted mb-6">No songs yet. Start creating!</p>
           <button
             onClick={() => setShowModal(true)}
-            className="rounded-lg bg-white text-black font-semibold py-3 px-6 hover:bg-zinc-200 transition"
+            className="rounded-lg bg-accent text-white font-semibold py-3 px-6 hover:bg-accent-hover transition"
           >
             + New Song
           </button>
@@ -174,7 +175,7 @@ export default function SongsPage() {
           {/* Search */}
           <div className="relative mb-4">
             <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-dim"
               xmlns="http://www.w3.org/2000/svg"
               width="16"
               height="16"
@@ -193,7 +194,7 @@ export default function SongsPage() {
               placeholder="Search songs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg bg-zinc-800 border border-zinc-700 pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-white/30"
+              className="w-full rounded-lg bg-surface border border-border pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-1 focus:ring-accent/40"
             />
           </div>
 
@@ -206,28 +207,67 @@ export default function SongsPage() {
                   onClick={() => setStatusFilter(opt.value)}
                   className={`shrink-0 text-xs px-3 py-1.5 rounded-full transition ${
                     statusFilter === opt.value
-                      ? "bg-white text-black font-semibold"
-                      : "bg-zinc-800 text-zinc-400 border border-zinc-700 hover:border-zinc-500"
+                      ? "bg-accent text-white font-semibold"
+                      : "bg-surface text-muted border border-border hover:border-border-light"
                   }`}
                 >
                   {opt.label}
                 </button>
               ))}
             </div>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="shrink-0 text-xs bg-zinc-800 border border-zinc-700 text-zinc-400 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30"
-            >
-              <option value="updated">Last Updated</option>
-              <option value="title">Title A–Z</option>
-              <option value="created">Date Created</option>
-            </select>
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setShowSort(!showSort)}
+                className="p-2 text-muted hover:text-foreground transition rounded-lg hover:bg-surface"
+                aria-label="Sort options"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m3 16 4 4 4-4" />
+                  <path d="M7 20V4" />
+                  <path d="m21 8-4-4-4 4" />
+                  <path d="M17 4v16" />
+                </svg>
+              </button>
+              {showSort && (
+                <div className="absolute right-0 top-10 z-10 bg-surface border border-border rounded-lg shadow-lg py-1 min-w-[150px]">
+                  {([
+                    { value: "updated", label: "Last Updated" },
+                    { value: "title", label: "Title A–Z" },
+                    { value: "created", label: "Date Created" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setSortBy(opt.value);
+                        setShowSort(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-xs transition ${
+                        sortBy === opt.value
+                          ? "text-foreground font-semibold bg-surface-alt"
+                          : "text-muted hover:bg-surface-alt hover:text-foreground"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <button
             onClick={() => setShowModal(true)}
-            className="w-full rounded-lg bg-white text-black font-semibold py-3 px-4 hover:bg-zinc-200 transition mb-4"
+            className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition mb-4"
           >
             + New Song
           </button>
@@ -239,10 +279,10 @@ export default function SongsPage() {
                 <button
                   key={song.id}
                   onClick={() => router.push(`/songs/${song.id}`)}
-                  className="w-full text-left rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 hover:bg-zinc-750 hover:border-zinc-600 transition"
+                  className="w-full text-left rounded-lg bg-surface border border-border px-4 py-3 hover:bg-surface-alt hover:border-border-light transition"
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-white font-medium truncate mr-2">
+                    <h3 className="text-foreground font-medium truncate mr-2">
                       {song.title}
                     </h3>
                     <span
@@ -251,7 +291,7 @@ export default function SongsPage() {
                       {STATUS_LABELS[song.status] ?? song.status}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 text-zinc-500 text-xs">
+                  <div className="flex items-center gap-3 text-muted-dim text-xs">
                     <span>
                       {song.version_count > 0
                         ? `${song.version_count} ${song.version_count === 1 ? "version" : "versions"}`
@@ -283,7 +323,7 @@ export default function SongsPage() {
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center py-12">
-              <p className="text-zinc-400">No songs match your filters.</p>
+              <p className="text-muted">No songs match your filters.</p>
             </div>
           )}
 

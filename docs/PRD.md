@@ -232,6 +232,50 @@ The mechanism for band members to access the shared workspace. Members are ident
 
 ---
 
+## 5.3 Visual Design & Color Scheme
+
+The app uses a dark theme inspired by a **"Sunset at the Pier"** palette — deep teal, purples, and pinks evoking light on water at dusk. The background is a fixed gradient from black to deep teal, giving the interface depth and atmosphere while keeping text highly legible.
+
+#### Color Palette
+
+| Role | Hex | Usage |
+|------|-----|-------|
+| **Background (gradient start)** | `#000000` | Body gradient start; overscroll color |
+| **Background (gradient end)** | `#01243a` | Body gradient end; deep teal base |
+| **Surface** | `#0a2e48` | Cards, inputs, elevated containers |
+| **Surface Alt** | `#442342` | Secondary surfaces, input backgrounds, hover states |
+| **Border** | `#660f53` | Default borders and dividers |
+| **Border Light** | `#7a2065` | Hover/focus borders |
+| **Accent** | `#7b2f80` | Primary buttons, active tabs, progress bars, focus rings |
+| **Accent Hover** | `#6a2570` | Button hover state |
+| **Foreground** | `#ededed` | Primary text (white) |
+| **Muted** | `#9ca3af` | Secondary/label text |
+| **Muted Dim** | `#6b7280` | Placeholder text, tertiary info |
+
+#### Design Tokens
+
+Colors are defined as CSS custom properties in `globals.css` and mapped to Tailwind via `@theme inline`, enabling consistent usage across all components (e.g. `bg-accent`, `text-muted`, `border-border`).
+
+#### Background
+
+The body uses a fixed linear gradient at 30 degrees (`linear-gradient(30deg, #000000, #01243a)`) with `background-attachment: fixed` so the gradient remains stable during scroll. The `<body>` element has a `bg-black` fallback to prevent white flash on mobile overscroll (pull-to-refresh).
+
+#### Lyric Section Colors
+
+Lyric section type badges use semi-transparent colored backgrounds to remain distinct within the dark theme:
+
+| Section | Color |
+|---------|-------|
+| Verse | Blue |
+| Chorus | Fuchsia |
+| Pre-Chorus | Indigo |
+| Bridge | Amber |
+| Intro | Teal |
+| Outro | Rose |
+| Custom | Surface Alt |
+
+---
+
 ## 6. Screen Map & Navigation
 
 The app uses a simple flat navigation structure optimized for mobile.

@@ -39,7 +39,7 @@ export default function JoinByLink() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
       <h1 className="text-4xl font-bold tracking-tight mb-2">BandBook</h1>
-      <p className="text-zinc-400 mb-10 text-center">
+      <p className="text-muted mb-10 text-center">
         You&apos;ve been invited to join a band
       </p>
 
@@ -50,7 +50,7 @@ export default function JoinByLink() {
           value={passcode}
           onChange={(e) => setPasscode(e.target.value)}
           required
-          className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+          className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
         />
 
         <input
@@ -59,7 +59,7 @@ export default function JoinByLink() {
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
           required
-          className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+          className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
         />
 
         <input
@@ -68,7 +68,7 @@ export default function JoinByLink() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+          className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
         />
 
         {error && <p className="text-red-400 text-sm">{error}</p>}
@@ -76,7 +76,7 @@ export default function JoinByLink() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-white text-black font-semibold py-3 px-4 hover:bg-zinc-200 transition disabled:opacity-50"
+          className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition disabled:opacity-50"
         >
           {loading ? "Joining..." : "Join Band"}
         </button>

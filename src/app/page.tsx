@@ -11,7 +11,7 @@ export default function Home() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
       <h1 className="text-4xl font-bold tracking-tight mb-2">BandBook</h1>
-      <p className="text-zinc-400 mb-10 text-center">
+      <p className="text-muted mb-10 text-center">
         A shared songwriting workspace for your band
       </p>
 
@@ -28,19 +28,19 @@ function HomeButtons({ onSelect }: { onSelect: (m: Mode) => void }) {
     <div className="flex flex-col gap-4 w-full max-w-xs">
       <button
         onClick={() => onSelect("create")}
-        className="w-full rounded-lg bg-white text-black font-semibold py-3 px-4 hover:bg-zinc-200 transition"
+        className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition"
       >
         Create a Band
       </button>
       <button
         onClick={() => onSelect("join")}
-        className="w-full rounded-lg border border-zinc-600 text-zinc-200 font-semibold py-3 px-4 hover:bg-zinc-800 transition"
+        className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
       >
         Join a Band
       </button>
       <button
         onClick={() => onSelect("recover")}
-        className="text-zinc-500 text-sm underline hover:text-white transition mt-2"
+        className="text-muted-dim text-sm underline hover:text-foreground transition mt-2"
       >
         Return to my bands
       </button>
@@ -89,7 +89,7 @@ function CreateBandForm({ onBack }: { onBack: () => void }) {
         value={bandName}
         onChange={(e) => setBandName(e.target.value)}
         required
-        className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
       />
 
       <input
@@ -100,7 +100,7 @@ function CreateBandForm({ onBack }: { onBack: () => void }) {
         minLength={4}
         maxLength={8}
         required
-        className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
       />
 
       <input
@@ -109,7 +109,7 @@ function CreateBandForm({ onBack }: { onBack: () => void }) {
         value={nickname}
         onChange={(e) => setNickname(e.target.value)}
         required
-        className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
       />
 
       <input
@@ -118,7 +118,7 @@ function CreateBandForm({ onBack }: { onBack: () => void }) {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         required
-        className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
       />
 
       {error && <p className="text-red-400 text-sm">{error}</p>}
@@ -126,7 +126,7 @@ function CreateBandForm({ onBack }: { onBack: () => void }) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-white text-black font-semibold py-3 px-4 hover:bg-zinc-200 transition disabled:opacity-50"
+        className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition disabled:opacity-50"
       >
         {loading ? "Creating..." : "Create Band"}
       </button>
@@ -134,7 +134,7 @@ function CreateBandForm({ onBack }: { onBack: () => void }) {
       <button
         type="button"
         onClick={onBack}
-        className="text-zinc-400 text-sm hover:text-white transition"
+        className="text-muted text-sm hover:text-foreground transition"
       >
         Back
       </button>
@@ -183,7 +183,7 @@ function JoinBandForm({ onBack }: { onBack: () => void }) {
         value={inviteToken}
         onChange={(e) => setInviteToken(e.target.value)}
         required
-        className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
       />
 
       <input
@@ -192,7 +192,7 @@ function JoinBandForm({ onBack }: { onBack: () => void }) {
         value={passcode}
         onChange={(e) => setPasscode(e.target.value)}
         required
-        className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
       />
 
       <input
@@ -201,7 +201,7 @@ function JoinBandForm({ onBack }: { onBack: () => void }) {
         value={nickname}
         onChange={(e) => setNickname(e.target.value)}
         required
-        className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
       />
 
       <input
@@ -210,7 +210,7 @@ function JoinBandForm({ onBack }: { onBack: () => void }) {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         required
-        className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
       />
 
       {error && <p className="text-red-400 text-sm">{error}</p>}
@@ -218,7 +218,7 @@ function JoinBandForm({ onBack }: { onBack: () => void }) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-white text-black font-semibold py-3 px-4 hover:bg-zinc-200 transition disabled:opacity-50"
+        className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition disabled:opacity-50"
       >
         {loading ? "Joining..." : "Join Band"}
       </button>
@@ -226,7 +226,7 @@ function JoinBandForm({ onBack }: { onBack: () => void }) {
       <button
         type="button"
         onClick={onBack}
-        className="text-zinc-400 text-sm hover:text-white transition"
+        className="text-muted text-sm hover:text-foreground transition"
       >
         Back
       </button>
@@ -299,7 +299,7 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
     return (
       <form onSubmit={handleLookup} className="w-full max-w-xs flex flex-col gap-4">
         <h2 className="text-xl font-semibold">Return to My Bands</h2>
-        <p className="text-zinc-400 text-sm">
+        <p className="text-muted text-sm">
           Enter the email you used when you joined.
         </p>
 
@@ -309,7 +309,7 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+          className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
         />
 
         {error && <p className="text-red-400 text-sm">{error}</p>}
@@ -317,7 +317,7 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-white text-black font-semibold py-3 px-4 hover:bg-zinc-200 transition disabled:opacity-50"
+          className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition disabled:opacity-50"
         >
           {loading ? "Searching..." : "Find My Bands"}
         </button>
@@ -325,7 +325,7 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
         <button
           type="button"
           onClick={onBack}
-          className="text-zinc-400 text-sm hover:text-white transition"
+          className="text-muted text-sm hover:text-foreground transition"
         >
           Back
         </button>
@@ -338,7 +338,7 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
     return (
       <div className="w-full max-w-xs flex flex-col gap-4">
         <h2 className="text-xl font-semibold">No Bands Found</h2>
-        <p className="text-zinc-400 text-sm">
+        <p className="text-muted text-sm">
           No bands were found for that email. You may have used a different
           address, or you might need to join a band first.
         </p>
@@ -347,14 +347,14 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
             setBands(null);
             setError("");
           }}
-          className="w-full rounded-lg border border-zinc-600 text-zinc-200 font-semibold py-3 px-4 hover:bg-zinc-800 transition"
+          className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
         >
           Try Another Email
         </button>
         <button
           type="button"
           onClick={onBack}
-          className="text-zinc-400 text-sm hover:text-white transition"
+          className="text-muted text-sm hover:text-foreground transition"
         >
           Back
         </button>
@@ -366,7 +366,7 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
   return (
     <div className="w-full max-w-xs flex flex-col gap-4">
       <h2 className="text-xl font-semibold">Your Bands</h2>
-      <p className="text-zinc-400 text-sm">
+      <p className="text-muted text-sm">
         Select a band and enter its passcode to rejoin.
       </p>
 
@@ -381,12 +381,12 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
             }}
             className={`text-left rounded-lg border px-4 py-3 transition ${
               selectedMemberId === b.member_id
-                ? "border-white bg-zinc-800"
-                : "border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
+                ? "border-accent bg-surface-alt"
+                : "border-border bg-surface hover:bg-surface-alt"
             }`}
           >
-            <p className="text-white font-medium">{b.band_name}</p>
-            <p className="text-zinc-500 text-xs">as {b.nickname}</p>
+            <p className="text-foreground font-medium">{b.band_name}</p>
+            <p className="text-muted-dim text-xs">as {b.nickname}</p>
           </button>
         ))}
       </div>
@@ -399,7 +399,7 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
             value={passcode}
             onChange={(e) => setPasscode(e.target.value)}
             required
-            className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
 
           {error && <p className="text-red-400 text-sm">{error}</p>}
@@ -407,7 +407,7 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-white text-black font-semibold py-3 px-4 hover:bg-zinc-200 transition disabled:opacity-50"
+            className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition disabled:opacity-50"
           >
             {loading ? "Recovering..." : "Rejoin Band"}
           </button>
@@ -417,7 +417,7 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
       <button
         type="button"
         onClick={onBack}
-        className="text-zinc-400 text-sm hover:text-white transition"
+        className="text-muted text-sm hover:text-foreground transition"
       >
         Back
       </button>
