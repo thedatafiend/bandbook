@@ -66,8 +66,12 @@ export default function SongDetailPage() {
   const [playerVersionId, setPlayerVersionId] = useState<string | null>(null);
 
   const fetchSong = useCallback(async () => {
-    // Check auth first
-    const authRes = await fetch("/api/auth/me");
+    // Fetch auth and song data in parallel
+    const [authRes, res] = await Promise.all([
+      fetch("/api/auth/me"),
+      fetch(`/api/songs/${songId}`),
+    ]);
+
     if (authRes.status === 401 || !(await authRes.json()).member) {
       setSessionExpired(true);
       setLoading(false);
@@ -75,7 +79,6 @@ export default function SongDetailPage() {
     }
 
     setSessionExpired(false);
-    const res = await fetch(`/api/songs/${songId}`);
     const data = await res.json();
     const s = data.song as SongDetail | null;
     setSong(s);
@@ -122,7 +125,7 @@ export default function SongDetailPage() {
       <main className="flex flex-1 flex-col items-center justify-center">
         <p className="text-muted mb-4">Song not found</p>
         <button
-          onClick={() => router.push("/songs")}
+          onClick={() => router.back()}
           className="text-foreground hover:underline"
         >
           Back to catalog
@@ -140,7 +143,7 @@ export default function SongDetailPage() {
       {/* Header */}
       <header className="flex items-center gap-4 mb-6">
         <button
-          onClick={() => router.push("/songs")}
+          onClick={() => router.back()}
           className="text-muted hover:text-foreground transition"
           aria-label="Back to songs"
         >
