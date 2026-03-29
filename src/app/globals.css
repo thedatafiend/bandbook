@@ -28,6 +28,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  background-color: #000000;
+}
+
 body {
   background: linear-gradient(30deg, #000000, var(--background));
   background-attachment: fixed;
