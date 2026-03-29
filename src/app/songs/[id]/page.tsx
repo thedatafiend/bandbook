@@ -585,17 +585,15 @@ function VersionCard({
         </button>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-foreground text-sm font-medium">
-              Version {version.version_number}
-            </span>
-            {version.label && (
-              <span className="text-muted text-sm truncate">
-                — {version.label}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-3 text-muted-dim text-xs mt-0.5">
+          <span className="text-foreground text-sm font-medium">
+            Version {version.version_number}
+          </span>
+          {version.label && (
+            <p className="text-muted text-sm truncate">
+              {version.label}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-muted-dim text-xs mt-0.5">
             <span>by {version.created_by_nickname}</span>
             <span>{formatDate(version.created_at)}</span>
             {version.audio_duration != null && (
