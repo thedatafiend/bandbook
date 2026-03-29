@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { SessionRecovery } from "@/components/session-recovery";
 
 interface AuthMember {
   id: string;
@@ -26,17 +27,31 @@ export default function SettingsPage() {
   const [currentMember, setCurrentMember] = useState<AuthMember | null>(null);
   const [members, setMembers] = useState<MemberInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const fetchData = useCallback(async () => {
-    const [authRes, membersRes] = await Promise.all([
-      fetch("/api/auth/me"),
-      fetch("/api/bands/members"),
-    ]);
+    const authRes = await fetch("/api/auth/me");
+
+    if (authRes.status === 401) {
+      setSessionExpired(true);
+      setLoading(false);
+      return;
+    }
+
     const authData = await authRes.json();
+
+    if (!authData.member) {
+      setSessionExpired(true);
+      setLoading(false);
+      return;
+    }
+
+    const membersRes = await fetch("/api/bands/members");
     const membersData = await membersRes.json();
 
+    setSessionExpired(false);
     setBand(authData.band);
-    setCurrentMember(authData.member ? { id: authData.member.id, email: authData.member.email } : null);
+    setCurrentMember({ id: authData.member.id, email: authData.member.email });
     setMembers(membersData.members ?? []);
     setLoading(false);
   }, []);
@@ -49,6 +64,20 @@ export default function SettingsPage() {
     return (
       <main className="flex flex-1 flex-col items-center justify-center">
         <p className="text-muted">Loading...</p>
+      </main>
+    );
+  }
+
+  if (sessionExpired) {
+    return (
+      <main className="flex flex-1 flex-col max-w-lg mx-auto w-full">
+        <SessionRecovery
+          onRecovered={() => {
+            setSessionExpired(false);
+            setLoading(true);
+            fetchData();
+          }}
+        />
       </main>
     );
   }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { SessionRecovery } from "@/components/session-recovery";
 
 interface VersionDetail {
   id: string;
@@ -60,10 +61,20 @@ export default function SongDetailPage() {
   const songId = params.id as string;
   const [song, setSong] = useState<SongDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [activeTab, setActiveTab] = useState<"versions" | "lyrics">("versions");
   const [playerVersionId, setPlayerVersionId] = useState<string | null>(null);
 
   const fetchSong = useCallback(async () => {
+    // Check auth first
+    const authRes = await fetch("/api/auth/me");
+    if (authRes.status === 401 || !(await authRes.json()).member) {
+      setSessionExpired(true);
+      setLoading(false);
+      return;
+    }
+
+    setSessionExpired(false);
     const res = await fetch(`/api/songs/${songId}`);
     const data = await res.json();
     const s = data.song as SongDetail | null;
@@ -88,6 +99,20 @@ export default function SongDetailPage() {
     return (
       <main className="flex flex-1 flex-col items-center justify-center">
         <p className="text-muted">Loading...</p>
+      </main>
+    );
+  }
+
+  if (sessionExpired) {
+    return (
+      <main className="flex flex-1 flex-col max-w-lg mx-auto w-full">
+        <SessionRecovery
+          onRecovered={() => {
+            setSessionExpired(false);
+            setLoading(true);
+            fetchSong();
+          }}
+        />
       </main>
     );
   }
