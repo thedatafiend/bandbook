@@ -7,20 +7,21 @@ export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isAuthPage = pathname === "/" || pathname.startsWith("/join");
+  const isPublicPage = isAuthPage || pathname.startsWith("/getting-started");
   const isApi = pathname.startsWith("/api");
 
   // Let API routes handle their own auth
   if (isApi) return NextResponse.next();
 
-  // No session → redirect to landing
+  // No session → redirect to landing (unless on a public page)
   if (!sessionToken || !bandId) {
-    if (isAuthPage) return NextResponse.next();
+    if (isPublicPage) return NextResponse.next();
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
   }
 
-  // Has session + on auth page → redirect to songs
+  // Has session + on auth page (login/join) → redirect to songs
   if (isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/songs";

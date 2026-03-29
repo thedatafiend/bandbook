@@ -1,426 +1,256 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useRef } from "react";
+import Link from "next/link";
+import { CreateBandForm } from "@/components/create-band-form";
+import { JoinBandForm } from "@/components/join-band-form";
+import { RecoverForm } from "@/components/recover-form";
 
 type Mode = "home" | "create" | "join" | "recover";
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("home");
+  const actionRef = useRef<HTMLDivElement>(null);
+
+  function scrollToAction(m: Mode) {
+    setMode(m);
+    setTimeout(() => {
+      actionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+  }
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-      <h1 className="text-4xl font-bold tracking-tight mb-2">BandBook</h1>
-      <p className="text-muted mb-10 text-center">
-        A shared songwriting workspace for your band
-      </p>
+    <main className="flex flex-1 flex-col items-center px-6 py-12">
+      {/* Hero */}
+      <section className="flex flex-col items-center text-center max-w-md mb-16">
+        <h1 className="text-5xl font-bold tracking-tight mb-3">BandBook</h1>
+        <p className="text-lg text-muted mb-8">
+          A shared songwriting workspace for your band.
+          <br />
+          Just your email, a passcode, and you&apos;re in.
+        </p>
 
-      {mode === "home" && <HomeButtons onSelect={setMode} />}
-      {mode === "create" && <CreateBandForm onBack={() => setMode("home")} />}
-      {mode === "join" && <JoinBandForm onBack={() => setMode("home")} />}
-      {mode === "recover" && <RecoverForm onBack={() => setMode("home")} />}
+        <div className="flex flex-col gap-3 w-full max-w-xs">
+          <button
+            onClick={() => scrollToAction("create")}
+            className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition"
+          >
+            Create a Band
+          </button>
+          <button
+            onClick={() => scrollToAction("join")}
+            className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
+          >
+            Join a Band
+          </button>
+          <button
+            onClick={() => scrollToAction("recover")}
+            className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
+          >
+            Return to My Bands
+          </button>
+        </div>
+
+        <Link
+          href="/getting-started"
+          className="mt-6 text-sm text-muted hover:text-foreground transition"
+        >
+          Learn how it works &rarr;
+        </Link>
+      </section>
+
+      {/* How It Works */}
+      <section className="w-full max-w-lg mb-16">
+        <h2 className="text-xl font-semibold text-center mb-8">How It Works</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <StepCard
+            step={1}
+            title="Create a Band"
+            description="Pick a name and set a shared passcode. That's it."
+            icon={
+              <svg className="w-8 h-8 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+            }
+          />
+          <StepCard
+            step={2}
+            title="Invite Your Bandmates"
+            description="Share a link. They join with the passcode."
+            icon={
+              <svg className="w-8 h-8 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+              </svg>
+            }
+          />
+          <StepCard
+            step={3}
+            title="Start Writing"
+            description="Upload recordings, write lyrics, track progress."
+            icon={
+              <svg className="w-8 h-8 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z" />
+              </svg>
+            }
+          />
+        </div>
+      </section>
+
+      {/* Feature Highlights */}
+      <section className="w-full max-w-lg mb-16">
+        <h2 className="text-xl font-semibold text-center mb-8">What You Get</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <FeatureCard
+            title="Simple Access"
+            description="Email and a shared passcode — no complex setup needed."
+            icon={
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+              </svg>
+            }
+          />
+          <FeatureCard
+            title="Lyrics Composer"
+            description="Structured sections — verse, chorus, bridge — with drag-and-drop reordering."
+            icon={
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+            }
+          />
+          <FeatureCard
+            title="Audio Versions"
+            description="Upload rehearsal recordings, label them, and track which version is current."
+            icon={
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+              </svg>
+            }
+          />
+          <FeatureCard
+            title="Revision History"
+            description="Every lyrics save is tracked. View or restore any past version."
+            icon={
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+          />
+          <FeatureCard
+            title="Song Status Tracking"
+            description="Mark songs as Draft, In Progress, or Finished. Search and filter your catalog."
+            icon={
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+              </svg>
+            }
+          />
+          <FeatureCard
+            title="Pick Up Where You Left Off"
+            description="Sign back in from any device with your email and the band passcode."
+            icon={
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+              </svg>
+            }
+          />
+        </div>
+      </section>
+
+      {/* Action Section */}
+      <section
+        ref={actionRef}
+        id="get-started"
+        className="w-full max-w-lg mb-16"
+      >
+        <div className="rounded-xl bg-surface border border-border p-6 flex flex-col items-center">
+          {mode === "home" && (
+            <div className="flex flex-col items-center gap-4 w-full max-w-xs">
+              <h2 className="text-xl font-semibold">Get Started</h2>
+              <button
+                onClick={() => setMode("create")}
+                className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition"
+              >
+                Create a Band
+              </button>
+              <button
+                onClick={() => setMode("join")}
+                className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
+              >
+                Join a Band
+              </button>
+              <button
+                onClick={() => setMode("recover")}
+                className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
+              >
+                Return to My Bands
+              </button>
+            </div>
+          )}
+          {mode === "create" && <CreateBandForm onBack={() => setMode("home")} />}
+          {mode === "join" && <JoinBandForm onBack={() => setMode("home")} />}
+          {mode === "recover" && <RecoverForm onBack={() => setMode("home")} />}
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="text-center text-sm text-muted-dim">
+        <Link
+          href="/getting-started"
+          className="hover:text-foreground transition"
+        >
+          Getting Started Guide
+        </Link>
+      </footer>
     </main>
   );
 }
 
-function HomeButtons({ onSelect }: { onSelect: (m: Mode) => void }) {
+function StepCard({
+  step,
+  title,
+  description,
+  icon,
+}: {
+  step: number;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+}) {
   return (
-    <div className="flex flex-col gap-4 w-full max-w-xs">
-      <button
-        onClick={() => onSelect("create")}
-        className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition"
-      >
-        Create a Band
-      </button>
-      <button
-        onClick={() => onSelect("join")}
-        className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
-      >
-        Join a Band
-      </button>
-      <button
-        onClick={() => onSelect("recover")}
-        className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
-      >
-        Return to My Bands
-      </button>
+    <div className="flex flex-col items-center text-center gap-3 p-4">
+      <div className="flex items-center justify-center w-14 h-14 rounded-full bg-surface border border-border">
+        {icon}
+      </div>
+      <div>
+        <span className="text-xs text-muted-dim font-medium uppercase tracking-wider">
+          Step {step}
+        </span>
+        <h3 className="text-base font-semibold mt-1">{title}</h3>
+        <p className="text-sm text-muted mt-1">{description}</p>
+      </div>
     </div>
   );
 }
 
-function CreateBandForm({ onBack }: { onBack: () => void }) {
-  const router = useRouter();
-  const [bandName, setBandName] = useState("");
-  const [passcode, setPasscode] = useState("");
-  const [nickname, setNickname] = useState("");
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    const res = await fetch("/api/bands/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bandName, passcode, nickname, email }),
-    });
-
-    const data = await res.json();
-    setLoading(false);
-
-    if (!res.ok) {
-      setError(data.error ?? "Something went wrong");
-      return;
-    }
-
-    router.push("/songs");
-  }
-
+function FeatureCard({
+  title,
+  description,
+  icon,
+}: {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+}) {
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-xs flex flex-col gap-4">
-      <h2 className="text-xl font-semibold">Create a Band</h2>
-
-      <input
-        type="text"
-        placeholder="Band name"
-        value={bandName}
-        onChange={(e) => setBandName(e.target.value)}
-        required
-        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
-      />
-
-      <input
-        type="text"
-        placeholder="Passcode (4–8 characters)"
-        value={passcode}
-        onChange={(e) => setPasscode(e.target.value)}
-        minLength={4}
-        maxLength={8}
-        required
-        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
-      />
-
-      <input
-        type="text"
-        placeholder="Your nickname"
-        value={nickname}
-        onChange={(e) => setNickname(e.target.value)}
-        required
-        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
-      />
-
-      <input
-        type="email"
-        placeholder="Email (for session recovery)"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
-      />
-
-      {error && <p className="text-red-400 text-sm">{error}</p>}
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition disabled:opacity-50"
-      >
-        {loading ? "Creating..." : "Create Band"}
-      </button>
-
-      <button
-        type="button"
-        onClick={onBack}
-        className="text-muted text-sm hover:text-foreground transition"
-      >
-        Back
-      </button>
-    </form>
-  );
-}
-
-function JoinBandForm({ onBack }: { onBack: () => void }) {
-  const router = useRouter();
-  const [passcode, setPasscode] = useState("");
-  const [nickname, setNickname] = useState("");
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [inviteToken, setInviteToken] = useState("");
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    const res = await fetch("/api/bands/join", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inviteToken, passcode, nickname, email }),
-    });
-
-    const data = await res.json();
-    setLoading(false);
-
-    if (!res.ok) {
-      setError(data.error ?? "Something went wrong");
-      return;
-    }
-
-    router.push("/songs");
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="w-full max-w-xs flex flex-col gap-4">
-      <h2 className="text-xl font-semibold">Join a Band</h2>
-
-      <input
-        type="text"
-        placeholder="Invite code"
-        value={inviteToken}
-        onChange={(e) => setInviteToken(e.target.value)}
-        required
-        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
-      />
-
-      <input
-        type="text"
-        placeholder="Passcode"
-        value={passcode}
-        onChange={(e) => setPasscode(e.target.value)}
-        required
-        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
-      />
-
-      <input
-        type="text"
-        placeholder="Your nickname"
-        value={nickname}
-        onChange={(e) => setNickname(e.target.value)}
-        required
-        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
-      />
-
-      <input
-        type="email"
-        placeholder="Email (for session recovery)"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
-      />
-
-      {error && <p className="text-red-400 text-sm">{error}</p>}
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition disabled:opacity-50"
-      >
-        {loading ? "Joining..." : "Join Band"}
-      </button>
-
-      <button
-        type="button"
-        onClick={onBack}
-        className="text-muted text-sm hover:text-foreground transition"
-      >
-        Back
-      </button>
-    </form>
-  );
-}
-
-interface BandResult {
-  member_id: string;
-  band_id: string;
-  band_name: string;
-  nickname: string;
-}
-
-function RecoverForm({ onBack }: { onBack: () => void }) {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [bands, setBands] = useState<BandResult[] | null>(null);
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  const [passcode, setPasscode] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function handleLookup(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    const res = await fetch("/api/auth/recover/lookup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-
-    const data = await res.json();
-    setLoading(false);
-
-    if (!res.ok) {
-      setError(data.error ?? "Something went wrong");
-      return;
-    }
-
-    setBands(data.bands);
-  }
-
-  async function handleRecover(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    const res = await fetch("/api/auth/recover/confirm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ memberId: selectedMemberId, passcode }),
-    });
-
-    const data = await res.json();
-    setLoading(false);
-
-    if (!res.ok) {
-      setError(data.error ?? "Something went wrong");
-      return;
-    }
-
-    router.push("/songs");
-  }
-
-  // Step 1: Email lookup
-  if (bands === null) {
-    return (
-      <form onSubmit={handleLookup} className="w-full max-w-xs flex flex-col gap-4">
-        <h2 className="text-xl font-semibold">Return to My Bands</h2>
-        <p className="text-muted text-sm">
-          Enter the email you used when you joined.
-        </p>
-
-        <input
-          type="email"
-          placeholder="Your email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
-        />
-
-        {error && <p className="text-red-400 text-sm">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition disabled:opacity-50"
-        >
-          {loading ? "Searching..." : "Find My Bands"}
-        </button>
-
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-muted text-sm hover:text-foreground transition"
-        >
-          Back
-        </button>
-      </form>
-    );
-  }
-
-  // Empty state
-  if (bands.length === 0) {
-    return (
-      <div className="w-full max-w-xs flex flex-col gap-4">
-        <h2 className="text-xl font-semibold">No Bands Found</h2>
-        <p className="text-muted text-sm">
-          No bands were found for that email. You may have used a different
-          address, or you might need to join a band first.
-        </p>
-        <button
-          onClick={() => {
-            setBands(null);
-            setError("");
-          }}
-          className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
-        >
-          Try Another Email
-        </button>
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-muted text-sm hover:text-foreground transition"
-        >
-          Back
-        </button>
+    <div className="rounded-lg bg-surface border border-border p-4 flex gap-3">
+      <div className="flex-shrink-0 w-9 h-9 rounded-md bg-surface-alt flex items-center justify-center text-accent">
+        {icon}
       </div>
-    );
-  }
-
-  // Step 2: Band selection + passcode
-  return (
-    <div className="w-full max-w-xs flex flex-col gap-4">
-      <h2 className="text-xl font-semibold">Your Bands</h2>
-      <p className="text-muted text-sm">
-        Select a band and enter its passcode to rejoin.
-      </p>
-
-      <div className="flex flex-col gap-2">
-        {bands.map((b) => (
-          <button
-            key={b.member_id}
-            onClick={() => {
-              setSelectedMemberId(b.member_id);
-              setPasscode("");
-              setError("");
-            }}
-            className={`text-left rounded-lg border px-4 py-3 transition ${
-              selectedMemberId === b.member_id
-                ? "border-accent bg-surface-alt"
-                : "border-border bg-surface hover:bg-surface-alt"
-            }`}
-          >
-            <p className="text-foreground font-medium">{b.band_name}</p>
-            <p className="text-muted-dim text-xs">as {b.nickname}</p>
-          </button>
-        ))}
+      <div>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <p className="text-xs text-muted mt-1">{description}</p>
       </div>
-
-      {selectedMemberId && (
-        <form onSubmit={handleRecover} className="flex flex-col gap-3">
-          <input
-            type="text"
-            placeholder="Band passcode"
-            value={passcode}
-            onChange={(e) => setPasscode(e.target.value)}
-            required
-            className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
-          />
-
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition disabled:opacity-50"
-          >
-            {loading ? "Recovering..." : "Rejoin Band"}
-          </button>
-        </form>
-      )}
-
-      <button
-        type="button"
-        onClick={onBack}
-        className="text-muted text-sm hover:text-foreground transition"
-      >
-        Back
-      </button>
     </div>
   );
 }
