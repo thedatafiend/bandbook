@@ -133,8 +133,21 @@ export default function SongDetailPage() {
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </button>
-        <div>
-          <h1 className="text-2xl font-bold">{song.title}</h1>
+        <div className="flex-1 min-w-0">
+          <EditableTitle
+            value={song.title}
+            onSave={async (newTitle) => {
+              const res = await fetch(`/api/songs/${song.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title: newTitle }),
+              });
+              if (res.ok) {
+                setSong((s) => s ? { ...s, title: newTitle } : s);
+              }
+              return res.ok;
+            }}
+          />
           <p className="text-muted-dim text-sm">
             {STATUS_LABELS[song.status] ?? song.status}
           </p>
@@ -202,6 +215,94 @@ export default function SongDetailPage() {
         />
       )}
     </main>
+  );
+}
+
+/* ─── Editable Title ─── */
+
+function EditableTitle({
+  value,
+  onSave,
+}: {
+  value: string;
+  onSave: (newValue: string) => Promise<boolean>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  async function handleSave() {
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed === value) {
+      setDraft(value);
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    const ok = await onSave(trimmed);
+    setSaving(false);
+    if (ok) {
+      setEditing(false);
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === "Escape") {
+      setDraft(value);
+      setEditing(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <input
+          ref={inputRef}
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={handleSave}
+          disabled={saving}
+          className="text-2xl font-bold bg-surface-alt border border-border rounded-lg px-2 py-0.5 text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40 w-full min-w-0"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => { setDraft(value); setEditing(true); }}
+      className="group flex items-center gap-1.5 text-left"
+      title="Click to edit"
+    >
+      <h1 className="text-2xl font-bold truncate">{value}</h1>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="shrink-0 text-muted-dim opacity-0 group-hover:opacity-100 transition"
+      >
+        <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+      </svg>
+    </button>
   );
 }
 
