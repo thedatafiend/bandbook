@@ -20,7 +20,11 @@ export async function GET() {
     .single<Member>();
 
   if (!member) {
-    return NextResponse.json({ member: null, band: null });
+    // Cookies exist but session is invalid/expired — return 401
+    return NextResponse.json(
+      { member: null, band: null, expired: true },
+      { status: 401 }
+    );
   }
 
   // Update last_active_at

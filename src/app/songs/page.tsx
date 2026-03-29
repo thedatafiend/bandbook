@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { NewSongModal } from "@/components/new-song-modal";
+import { SessionRecovery } from "@/components/session-recovery";
 
 interface MemberInfo {
   nickname: string;
@@ -51,6 +52,7 @@ export default function SongsPage() {
   const [band, setBand] = useState<BandInfo | null>(null);
   const [songs, setSongs] = useState<SongCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -61,13 +63,26 @@ export default function SongsPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchData = useCallback(async () => {
-    const [authRes, songsRes] = await Promise.all([
-      fetch("/api/auth/me"),
-      fetch("/api/songs"),
-    ]);
+    const authRes = await fetch("/api/auth/me");
+
+    if (authRes.status === 401) {
+      setSessionExpired(true);
+      setLoading(false);
+      return;
+    }
+
     const authData = await authRes.json();
+
+    if (!authData.member) {
+      setSessionExpired(true);
+      setLoading(false);
+      return;
+    }
+
+    const songsRes = await fetch("/api/songs");
     const songsData = await songsRes.json();
 
+    setSessionExpired(false);
     setMember(authData.member);
     setBand(authData.band);
     setSongs(songsData.songs ?? []);
@@ -123,6 +138,20 @@ export default function SongsPage() {
       month: "short",
       day: "numeric",
     });
+  }
+
+  if (sessionExpired) {
+    return (
+      <main className="flex flex-1 flex-col max-w-lg mx-auto w-full">
+        <SessionRecovery
+          onRecovered={() => {
+            setSessionExpired(false);
+            setLoading(true);
+            fetchData();
+          }}
+        />
+      </main>
+    );
   }
 
   return (

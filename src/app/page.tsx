@@ -40,9 +40,9 @@ function HomeButtons({ onSelect }: { onSelect: (m: Mode) => void }) {
       </button>
       <button
         onClick={() => onSelect("recover")}
-        className="text-muted-dim text-sm underline hover:text-foreground transition mt-2"
+        className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
       >
-        Return to my bands
+        Return to My Bands
       </button>
     </div>
   );
