@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 interface AuthMember {
@@ -79,6 +79,10 @@ export default function SettingsPage() {
       </header>
 
       <div className="flex flex-col gap-8">
+        <BandNameSection
+          currentName={band?.name ?? ""}
+          onUpdate={(newName) => setBand((b) => b ? { ...b, name: newName } : b)}
+        />
         <RecoveryEmailSection
           currentEmail={currentMember?.email ?? ""}
         />
@@ -92,6 +96,117 @@ export default function SettingsPage() {
         <MembersSection members={members} />
       </div>
     </main>
+  );
+}
+
+function BandNameSection({
+  currentName,
+  onUpdate,
+}: {
+  currentName: string;
+  onUpdate: (newName: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(currentName);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setName(currentName);
+  }, [currentName]);
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  async function handleSave() {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError("Name cannot be empty");
+      return;
+    }
+    if (trimmed === currentName) {
+      setEditing(false);
+      return;
+    }
+
+    setError("");
+    setSaving(true);
+    const res = await fetch("/api/bands/name", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    const data = await res.json();
+    setSaving(false);
+
+    if (!res.ok) {
+      setError(data.error ?? "Something went wrong");
+      return;
+    }
+
+    onUpdate(trimmed);
+    setEditing(false);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === "Escape") {
+      setName(currentName);
+      setEditing(false);
+      setError("");
+    }
+  }
+
+  return (
+    <section>
+      <h2 className="text-lg font-semibold mb-3">Band Name</h2>
+      {editing ? (
+        <div className="flex flex-col gap-3">
+          <input
+            ref={inputRef}
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={saving}
+            className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
+          />
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-lg bg-accent text-white font-semibold py-2 px-4 text-sm hover:bg-accent-hover transition disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+            <button
+              onClick={() => { setName(currentName); setEditing(false); setError(""); }}
+              className="text-muted text-sm hover:text-foreground transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between rounded-lg bg-surface border border-border px-4 py-3">
+          <span className="text-foreground font-medium">{currentName}</span>
+          <button
+            onClick={() => setEditing(true)}
+            className="text-muted text-sm hover:text-foreground transition"
+          >
+            Edit
+          </button>
+        </div>
+      )}
+    </section>
   );
 }
 

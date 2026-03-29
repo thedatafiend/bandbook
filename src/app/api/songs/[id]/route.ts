@@ -2,6 +2,60 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth";
 
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await getAuthContext();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const supabase = await createClient();
+
+  // Verify song belongs to band
+  const { data: song } = await supabase
+    .from("songs")
+    .select("id")
+    .eq("id", id)
+    .eq("band_id", auth.band.id)
+    .single();
+
+  if (!song) {
+    return NextResponse.json({ error: "Song not found" }, { status: 404 });
+  }
+
+  const body = await request.json();
+  const { title } = body as { title?: string };
+
+  const updates: Record<string, unknown> = {};
+  if (title !== undefined) {
+    const trimmed = title.trim();
+    if (!trimmed) {
+      return NextResponse.json({ error: "Title cannot be empty" }, { status: 400 });
+    }
+    updates.title = trimmed;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "No updates provided" }, { status: 400 });
+  }
+
+  updates.updated_at = new Date().toISOString();
+
+  const { error: updateError } = await supabase
+    .from("songs")
+    .update(updates)
+    .eq("id", id);
+
+  if (updateError) {
+    return NextResponse.json({ error: "Failed to update song" }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
