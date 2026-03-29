@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { NewSongModal } from "@/components/new-song-modal";
 import { SessionRecovery } from "@/components/session-recovery";
+import { cacheGet, cacheSet, cacheInvalidate } from "@/lib/cache";
 
 interface MemberInfo {
   nickname: string;
@@ -63,7 +65,11 @@ export default function SongsPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchData = useCallback(async () => {
-    const authRes = await fetch("/api/auth/me");
+    // Fetch auth and songs in parallel instead of sequentially
+    const [authRes, songsRes] = await Promise.all([
+      fetch("/api/auth/me"),
+      fetch("/api/songs"),
+    ]);
 
     if (authRes.status === 401) {
       setSessionExpired(true);
@@ -79,18 +85,35 @@ export default function SongsPage() {
       return;
     }
 
-    const songsRes = await fetch("/api/songs");
     const songsData = await songsRes.json();
 
     setSessionExpired(false);
     setMember(authData.member);
     setBand(authData.band);
-    setSongs(songsData.songs ?? []);
+    const songsList = songsData.songs ?? [];
+    setSongs(songsList);
+    cacheSet("songs", songsList);
+    cacheSet("auth", { member: authData.member, band: authData.band });
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    fetchData();
+    // Show cached data immediately, then revalidate in background
+    const cachedAuth = cacheGet<{ member: MemberInfo; band: BandInfo }>("auth");
+    const cachedSongs = cacheGet<SongCard[]>("songs");
+
+    if (cachedAuth && cachedSongs) {
+      setMember(cachedAuth.data.member);
+      setBand(cachedAuth.data.band);
+      setSongs(cachedSongs.data);
+      setLoading(false);
+      // Revalidate in background if stale
+      if (cachedAuth.stale || cachedSongs.stale) {
+        fetchData();
+      }
+    } else {
+      fetchData();
+    }
   }, [fetchData]);
 
   useEffect(() => {
@@ -305,10 +328,10 @@ export default function SongsPage() {
           {filteredSongs.length > 0 ? (
             <div className="flex flex-col gap-3">
               {filteredSongs.map((song) => (
-                <button
+                <Link
                   key={song.id}
-                  onClick={() => router.push(`/songs/${song.id}`)}
-                  className="w-full text-left rounded-lg bg-surface border border-border px-4 py-3 hover:bg-surface-alt hover:border-border-light transition"
+                  href={`/songs/${song.id}`}
+                  className="w-full text-left rounded-lg bg-surface border border-border px-4 py-3 hover:bg-surface-alt hover:border-border-light transition block"
                 >
                   <div className="flex items-center justify-between mb-1">
                     <h3 className="text-foreground font-medium truncate mr-2">
@@ -347,7 +370,7 @@ export default function SongsPage() {
                     )}
                     <span>Updated {formatDate(song.updated_at)}</span>
                   </div>
-                </button>
+                </Link>
               ))}
             </div>
           ) : (
@@ -359,7 +382,7 @@ export default function SongsPage() {
         </>
       )}
 
-      {showModal && <NewSongModal onClose={() => setShowModal(false)} />}
+      {showModal && <NewSongModal onClose={() => { setShowModal(false); cacheInvalidate("songs"); fetchData(); }} />}
     </main>
   );
 }

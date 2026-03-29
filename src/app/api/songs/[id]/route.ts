@@ -68,71 +68,89 @@ export async function GET(
   const { id } = await params;
   const supabase = await createClient();
 
-  const { data: song, error: songError } = await supabase
-    .from("songs")
-    .select("*")
-    .eq("id", id)
-    .eq("band_id", auth.band.id)
-    .single();
+  // Fetch song, versions, and lyrics in parallel instead of sequentially
+  const [songResult, versionsResult, lyricsResult] = await Promise.all([
+    supabase
+      .from("songs")
+      .select("*")
+      .eq("id", id)
+      .eq("band_id", auth.band.id)
+      .single(),
+    supabase
+      .from("versions")
+      .select("id, version_number, label, audio_url, audio_duration, notes, is_current, created_at, created_by_member_id")
+      .eq("song_id", id)
+      .order("version_number", { ascending: false }),
+    supabase
+      .from("lyric_sections")
+      .select("id, section_type, section_label, content, sort_order, updated_at, updated_by_member_id")
+      .eq("song_id", id)
+      .order("sort_order", { ascending: true }),
+  ]);
 
-  if (songError || !song) {
+  const song = songResult.data;
+  if (songResult.error || !song) {
     return NextResponse.json({ error: "Song not found" }, { status: 404 });
   }
 
-  const { data: versions } = await supabase
-    .from("versions")
-    .select("id, version_number, label, audio_url, audio_duration, notes, is_current, created_at, created_by_member_id")
-    .eq("song_id", id)
-    .order("version_number", { ascending: false });
-
-  // Fetch lyric sections ordered by sort_order
-  const { data: lyricSections } = await supabase
-    .from("lyric_sections")
-    .select("id, section_type, section_label, content, sort_order, updated_at, updated_by_member_id")
-    .eq("song_id", id)
-    .order("sort_order", { ascending: true });
+  const versions = versionsResult.data ?? [];
+  const lyricSections = lyricsResult.data ?? [];
 
   // Collect all member IDs for attribution
   const memberIds = new Set<string>();
-  for (const v of versions ?? []) {
+  for (const v of versions) {
     memberIds.add(v.created_by_member_id);
   }
-  for (const s of lyricSections ?? []) {
+  for (const s of lyricSections) {
     if (s.updated_by_member_id) memberIds.add(s.updated_by_member_id);
   }
 
-  let memberMap: Record<string, string> = {};
-  if (memberIds.size > 0) {
-    const { data: members } = await supabase
-      .from("members")
-      .select("id, nickname")
-      .in("id", [...memberIds]);
-    if (members) {
-      for (const m of members) {
-        memberMap[m.id] = m.nickname;
-      }
-    }
-  }
+  // Fetch members and generate signed URLs in parallel
+  const audioUrls = versions.filter((v) => v.audio_url).map((v) => v.audio_url);
 
-  // Generate signed URLs for audio playback (1 hour expiry)
-  const versionsWithDetails = await Promise.all(
-    (versions ?? []).map(async (v) => {
-      let signedAudioUrl: string | null = null;
-      if (v.audio_url) {
+  const [memberMap, signedUrlMap] = await Promise.all([
+    // Fetch member nicknames
+    (async () => {
+      const map: Record<string, string> = {};
+      if (memberIds.size > 0) {
+        const { data: members } = await supabase
+          .from("members")
+          .select("id, nickname")
+          .in("id", [...memberIds]);
+        if (members) {
+          for (const m of members) {
+            map[m.id] = m.nickname;
+          }
+        }
+      }
+      return map;
+    })(),
+    // Batch-generate signed URLs for all audio files
+    (async () => {
+      const map: Record<string, string> = {};
+      if (audioUrls.length > 0) {
         const { data: signedData } = await supabase.storage
           .from("audio")
-          .createSignedUrl(v.audio_url, 3600);
-        signedAudioUrl = signedData?.signedUrl ?? null;
+          .createSignedUrls(audioUrls, 3600);
+        if (signedData) {
+          for (const entry of signedData) {
+            if (entry.signedUrl && entry.path) {
+              map[entry.path] = entry.signedUrl;
+            }
+          }
+        }
       }
-      return {
-        ...v,
-        signed_audio_url: signedAudioUrl,
-        created_by_nickname: memberMap[v.created_by_member_id] ?? "Unknown",
-      };
-    })
-  );
+      return map;
+    })(),
+  ]);
 
-  const lyricSectionsWithNicknames = (lyricSections ?? []).map((s) => ({
+  const versionsWithDetails = versions.map((v) => ({
+    ...v,
+    signed_audio_url: v.audio_url ? (signedUrlMap[v.audio_url] ?? null) : null,
+    created_by_nickname: memberMap[v.created_by_member_id] ?? "Unknown",
+  }));
+
+  const lyricSectionsWithNicknames = lyricSections.map((s) => ({
     ...s,
     updated_by_nickname: s.updated_by_member_id
       ? memberMap[s.updated_by_member_id] ?? "Unknown"
