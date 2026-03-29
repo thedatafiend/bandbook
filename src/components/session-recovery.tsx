@@ -104,7 +104,7 @@ export function SessionRecovery({ onRecovered }: SessionRecoveryProps) {
               disabled={loading}
               className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition disabled:opacity-50"
             >
-              {loading ? "Searching..." : "Find My Bands"}
+              {loading ? "Searching..." : "Search My Bands"}
             </button>
           </form>
         </div>
