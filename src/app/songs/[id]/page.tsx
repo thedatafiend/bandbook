@@ -564,6 +564,8 @@ function VersionCard({
   const [notes, setNotes] = useState(version.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [settingCurrent, setSettingCurrent] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   async function saveChanges() {
     setSaving(true);
@@ -697,8 +699,33 @@ function VersionCard({
                 {settingCurrent ? "Setting..." : "Set as Current"}
               </button>
             )}
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="rounded-lg border border-red-500/30 text-red-400 py-1.5 px-3 text-xs hover:bg-red-500/10 transition"
+              >
+                Delete
+              </button>
+            ) : (
+              <button
+                onClick={async () => {
+                  setDeleting(true);
+                  await fetch(`/api/versions/${version.id}`, {
+                    method: "DELETE",
+                  });
+                  setDeleting(false);
+                  setConfirmDelete(false);
+                  onEdit();
+                  onUpdate();
+                }}
+                disabled={deleting}
+                className="rounded-lg bg-red-600 text-white py-1.5 px-3 text-xs hover:bg-red-700 transition disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Confirm Delete"}
+              </button>
+            )}
             <button
-              onClick={onEdit}
+              onClick={() => { setConfirmDelete(false); onEdit(); }}
               className="text-muted-dim text-xs hover:text-foreground transition ml-auto"
             >
               Cancel

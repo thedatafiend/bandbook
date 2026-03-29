@@ -98,3 +98,91 @@ export async function PATCH(
 
   return NextResponse.json({ success: true });
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await getAuthContext();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id: versionId } = await params;
+  const supabase = await createClient();
+
+  // Fetch version with its audio_url and song_id
+  const { data: version } = await supabase
+    .from("versions")
+    .select("id, song_id, audio_url, is_current")
+    .eq("id", versionId)
+    .single();
+
+  if (!version) {
+    return NextResponse.json({ error: "Version not found" }, { status: 404 });
+  }
+
+  // Verify the version's song belongs to the authenticated band
+  const { data: song } = await supabase
+    .from("songs")
+    .select("id, band_id")
+    .eq("id", version.song_id)
+    .eq("band_id", auth.band.id)
+    .single();
+
+  if (!song) {
+    return NextResponse.json({ error: "Version not found" }, { status: 404 });
+  }
+
+  // Delete the audio file from storage
+  if (version.audio_url) {
+    await supabase.storage.from("audio").remove([version.audio_url]);
+  }
+
+  // Delete the version record
+  const { error: deleteError } = await supabase
+    .from("versions")
+    .delete()
+    .eq("id", versionId);
+
+  if (deleteError) {
+    return NextResponse.json({ error: "Failed to delete version" }, { status: 500 });
+  }
+
+  // If this was the current version, reassign current to the latest remaining version
+  if (version.is_current) {
+    const { data: latest } = await supabase
+      .from("versions")
+      .select("id")
+      .eq("song_id", version.song_id)
+      .order("version_number", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (latest) {
+      await supabase
+        .from("versions")
+        .update({ is_current: true })
+        .eq("id", latest.id);
+
+      await supabase
+        .from("songs")
+        .update({
+          current_version_id: latest.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", version.song_id);
+    } else {
+      // No versions left — clear current_version_id
+      await supabase
+        .from("songs")
+        .update({
+          current_version_id: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", version.song_id);
+    }
+  }
+
+  return NextResponse.json({ success: true });
+}
