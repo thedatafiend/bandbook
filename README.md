@@ -1,5 +1,13 @@
 # BandBook
 
+[![CI Tests](https://github.com/thedatafiend/bandbook/actions/workflows/test.yml/badge.svg)](https://github.com/thedatafiend/bandbook/actions/workflows/test.yml)
+![Next.js](https://img.shields.io/badge/Next.js-16.2.1-black?logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React-19.2.4-61DAFB?logo=react&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Database_&_Auth-3FCF8E?logo=supabase&logoColor=white)
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
+
 A collaborative songwriting workspace for bands. Upload rehearsal recordings, compose structured lyrics, manage song versions, and keep your entire catalog in one shared space — all from your phone.
 
 ## What is BandBook?
