@@ -33,13 +33,14 @@ describe("GET /api/auth/me", () => {
     expect(data).toEqual({ member: null, band: null });
   });
 
-  it("returns null when member not found", async () => {
+  it("returns 401 with expired flag when member not found", async () => {
     mockGetSession.mockResolvedValue({ sessionToken: "tok", bandId: "b1" });
     mockQuery.single.mockResolvedValueOnce({ data: null });
 
     const response = await GET();
+    expect(response.status).toBe(401);
     const data = await response.json();
-    expect(data).toEqual({ member: null, band: null });
+    expect(data).toEqual({ member: null, band: null, expired: true });
   });
 
   it("returns member and band on valid session", async () => {
