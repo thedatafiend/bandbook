@@ -56,7 +56,7 @@ export default function GettingStartedPage() {
           <Section id="creating-an-account" title="Creating an Account">
             <p>
               The first step is to create a free BandBook account. Tap{" "}
-              <strong>Get Started</strong> on the home page and sign up with
+              <strong>Get Started</strong>{" "}on the home page and sign up with
               your email and a password, or use Google or Facebook.
             </p>
             <p>
@@ -65,7 +65,7 @@ export default function GettingStartedPage() {
             </p>
             <Tip>
               Already had a band before accounts were introduced? Sign up with
-              the <strong>same email</strong> you used originally and your
+              the <strong>same email</strong>{" "}you used originally and your
               existing bands will be linked to your new account automatically.
               If you sign up with Google or Facebook, make sure the email on
               that account matches the one you used before.
@@ -75,8 +75,8 @@ export default function GettingStartedPage() {
           {/* Creating a Band */}
           <Section id="creating-a-band" title="Creating a Band">
             <p>
-              Once you&apos;re signed in, tap <strong>Create a Band</strong> on
-              the home page. You&apos;ll need three things:
+              Once you&apos;re signed in, tap <strong>Create a Band</strong>{" "}
+              on the home page. You&apos;ll need three things:
             </p>
             <ul className="list-disc list-inside space-y-1 text-sm text-muted">
               <li>
@@ -117,7 +117,7 @@ export default function GettingStartedPage() {
               </li>
               <li>
                 <strong className="text-foreground">Manually</strong> — tap{" "}
-                <strong>Join a Band</strong> on the home page and enter the
+                <strong>Join a Band</strong>{" "}on the home page and enter the
                 invite code, passcode, and your nickname
               </li>
             </ul>
@@ -193,12 +193,12 @@ export default function GettingStartedPage() {
             </p>
             <ul className="list-disc list-inside space-y-1 text-sm text-muted">
               <li>
-                <strong className="text-foreground">Label</strong> your versions
+                <strong className="text-foreground">Label</strong>{" "}your versions
                 to tell them apart (e.g., &quot;Garage rehearsal 3/15&quot;,
                 &quot;Studio demo&quot;)
               </li>
               <li>
-                <strong className="text-foreground">Add notes</strong> to
+                <strong className="text-foreground">Add notes</strong>{" "}to
                 remember what&apos;s different about each take
               </li>
               <li>
