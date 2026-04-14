@@ -103,6 +103,28 @@ export default function SettingsPage() {
         />
         <ChangePasscodeSection />
         <MembersSection members={members} />
+
+        {/* More Bands */}
+        <section>
+          <h2 className="text-lg font-semibold mb-3">More Bands</h2>
+          <p className="text-muted text-sm mb-4">
+            Create a new band or join another one with an invite code.
+          </p>
+          <div className="flex gap-3">
+            <a
+              href="/?action=create"
+              className="flex-1 text-center rounded-lg bg-accent text-white font-semibold py-2.5 px-4 text-sm hover:bg-accent-hover transition"
+            >
+              Create a Band
+            </a>
+            <a
+              href="/?action=join"
+              className="flex-1 text-center rounded-lg border border-border-light text-foreground font-semibold py-2.5 px-4 text-sm hover:bg-surface-alt transition"
+            >
+              Join a Band
+            </a>
+          </div>
+        </section>
       </div>
     </main>
   );

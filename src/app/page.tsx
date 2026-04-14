@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth, SignInButton, SignUpButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { CreateBandForm } from "@/components/create-band-form";
@@ -18,8 +18,14 @@ type Mode = "home" | "create" | "join";
 
 export default function Home() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isSignedIn, isLoaded } = useAuth();
-  const [mode, setMode] = useState<Mode>("home");
+
+  // Allow deep-linking to create/join via ?action=create or ?action=join
+  const actionParam = searchParams.get("action");
+  const initialMode = actionParam === "create" || actionParam === "join" ? actionParam : "home";
+
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [userBands, setUserBands] = useState<UserBand[]>([]);
   const [claiming, setClaiming] = useState(false);
   const actionRef = useRef<HTMLDivElement>(null);
@@ -27,6 +33,8 @@ export default function Home() {
   // After auth, claim any unclaimed memberships and load user's bands
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
+    // Skip auto-redirect when user explicitly navigated here to create/join
+    if (actionParam === "create" || actionParam === "join") return;
 
     setClaiming(true);
     fetch("/api/auth/claim-memberships", { method: "POST" })
@@ -43,7 +51,7 @@ export default function Home() {
         // Claim failed — user can still create/join bands manually
       })
       .finally(() => setClaiming(false));
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, actionParam, router]);
 
   function scrollToAction(m: Mode) {
     setMode(m);
