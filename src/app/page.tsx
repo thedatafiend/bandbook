@@ -18,7 +18,7 @@ type Mode = "home" | "create" | "join";
 
 export default function Home() {
   const router = useRouter();
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
   const [mode, setMode] = useState<Mode>("home");
   const [claimedBands, setClaimedBands] = useState<ClaimedBand[]>([]);
   const [claiming, setClaiming] = useState(false);
@@ -26,7 +26,7 @@ export default function Home() {
 
   // On mount, claim any existing memberships linked to this email
   useEffect(() => {
-    if (!isSignedIn) return;
+    if (!isLoaded || !isSignedIn) return;
 
     setClaiming(true);
     fetch("/api/auth/claim-memberships", { method: "POST" })
@@ -39,8 +39,11 @@ export default function Home() {
           setClaimedBands(data.claimed);
         }
       })
+      .catch(() => {
+        // Claim failed — user can still create/join bands manually
+      })
       .finally(() => setClaiming(false));
-  }, [isSignedIn, router]);
+  }, [isLoaded, isSignedIn, router]);
 
   function scrollToAction(m: Mode) {
     setMode(m);
