@@ -308,7 +308,7 @@ export default function GettingStartedPage() {
         <div className="mt-16 mb-8 rounded-xl bg-surface border border-border p-8 text-center">
           <h2 className="text-xl font-semibold mb-2">Ready to start?</h2>
           <p className="text-muted text-sm mb-6">
-            Create a band and invite your bandmates in under a minute.
+            Create a free account and start your band&apos;s songwriting workspace.
           </p>
           <Link
             href="/#get-started"
