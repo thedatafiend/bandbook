@@ -1,7 +1,8 @@
 # Accounts Migration Plan
 
-**Status:** Planning
+**Status:** In Progress (Clerk Integration)
 **Created:** 2026-03-30
+**Updated:** 2026-04-14
 **Target Phase:** Phase 3 (per PRD roadmap)
 
 ---
@@ -10,7 +11,25 @@
 
 BandBook currently uses a **lightweight member identity** system: members are identified by a nickname, email, and session token scoped to a single band. There are no persistent user accounts, no passwords, and no cross-band identity.
 
-This plan describes migrating to a **proper accounts system** where a user has a single account that can belong to multiple bands, with role-based access control and email-based authentication.
+This plan describes migrating to a **proper accounts system** using **Clerk** as the managed authentication provider. Clerk handles user accounts, sessions, passwords, email verification, and OAuth — allowing us to focus on band-specific features like memberships, roles, and band switching.
+
+### Why Clerk?
+
+After evaluating a fully custom accounts migration against Clerk, we chose Clerk because:
+
+1. **~50-60% less migration work** — Clerk eliminates the `accounts` table, `account_sessions` table, login/signup/logout routes, password hashing, email verification, and session cookie management.
+2. **Stronger security posture** — Auth is Clerk's core business. No custom session token implementation to audit.
+3. **Free tier is sufficient** — BandBook is a niche app; 10,000 MAU free tier is unlikely to be exceeded.
+4. **OAuth and MFA come free** — Previously deferred as "post-migration enhancements," now available day one.
+5. **Reduced ongoing maintenance** — No custom auth code to patch, update, or debug.
+
+### What Clerk does NOT replace
+
+- **Memberships table** (band-scoped identity with roles and nicknames)
+- **RBAC enforcement** in API routes
+- **Band context** (`bb_band` cookie, band switching)
+- **Band passcode** join flow
+- **FK migration** (`*_member_id` columns)
 
 ---
 
@@ -44,33 +63,22 @@ This plan describes migrating to a **proper accounts system** where a user has a
 
 ### New Identity Model
 ```
-Account (1) ──< Membership (many) >── Band (1)
+Clerk User (1) ──< Membership (many) >── Band (1)
    │
-   └── email, password_hash, display_name, verified, created_at
+   └── email, password, display_name (managed by Clerk)
 ```
 
-- **Account**: A persistent user identity with email-based auth
-- **Membership**: A join table linking accounts to bands with a role and band-specific nickname
-- **Member** table: Retained as `memberships` (renamed), but now FK'd to `accounts` instead of being standalone
+- **Clerk User**: A persistent user identity managed entirely by Clerk (email, password, OAuth, sessions)
+- **Membership**: A join table linking Clerk users to bands with a role and band-specific nickname
+- **Member** table: Evolved into `memberships`, with `clerk_user_id` replacing `session_token` + `email`
 
-### New Tables
-
-#### `accounts`
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | `uuid` PK | |
-| `email` | `text` UNIQUE NOT NULL | Login identity; lowercase, trimmed |
-| `password_hash` | `text` | bcrypt; nullable during migration grace period |
-| `display_name` | `text` NOT NULL | Default display name across bands |
-| `email_verified` | `boolean` DEFAULT false | For future email verification |
-| `created_at` | `timestamptz` | |
-| `updated_at` | `timestamptz` | |
+### Evolved Tables
 
 #### `memberships` (evolved from `members`)
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | `uuid` PK | Same as current `members.id` (preserves FKs) |
-| `account_id` | `uuid` FK → accounts | NEW: links to account |
+| `clerk_user_id` | `text` NOT NULL | Clerk user ID (e.g., `user_2abc...`) |
 | `band_id` | `uuid` FK → bands | Same as current |
 | `nickname` | `text` NOT NULL | Band-specific display name |
 | `role` | `membership_role` ENUM | `'admin'`, `'member'`, `'viewer'` |
@@ -78,122 +86,57 @@ Account (1) ──< Membership (many) >── Band (1)
 | `last_active_at` | `timestamptz` | |
 
 #### Dropped Columns (from current `members`)
-- `email` → moved to `accounts`
-- `session_token` → replaced by account-level session management
+- `email` → managed by Clerk
+- `session_token` → replaced by Clerk session management
 
 ### Session Model
-- Replace per-member session tokens with account-level sessions
-- New cookie: `bb_account_session` (replaces `bb_session`)
+- Clerk manages all sessions via `__session` JWT cookie
 - Keep `bb_band` cookie for active band context
 - Support switching between bands without re-authentication
 
 ---
 
-## 4. Migration Strategy
+## 4. Migration Strategy (Clerk)
 
-### Phase A: Prepare (Non-Breaking)
+### Phase 1: Auth Infrastructure (replaces old Phases A+B)
 
-**Goal:** Add the accounts infrastructure alongside existing members, with zero user-facing changes.
+**Goal:** Replace custom session auth with Clerk, add membership evolution.
 
-1. **Create `accounts` table** with email + password_hash (nullable)
-2. **Create `account_sessions` table** for new session management
-3. **Add `account_id` column** to `members` table (nullable FK → accounts)
-4. **Backfill accounts** from existing members:
-   - Group members by lowercase email
-   - For each unique email, create one `accounts` row
-   - Set `members.account_id` to the corresponding account
-   - Use existing member nickname as `accounts.display_name` (pick the most recently active member if multiple)
-5. **Add `role` column** to members with default `'member'`; set band creators to `'admin'`
+1. **Install `@clerk/nextjs`** and configure `ClerkProvider` in layout
+2. **Add `clerk_user_id` column** to `members` table (nullable during migration)
+3. **Add `role` column** to members with default `'member'`
+4. **Rewrite `getAuthContext()`** to use Clerk `auth()` + membership lookup
+5. **Rewrite `proxy.ts`** to use Clerk session status for route protection
+6. **Update band create/join routes** to require Clerk authentication
+7. **Remove legacy auth**: recover routes, session token management, `bb_session` cookie
+8. **Add Clerk sign-in/sign-up pages** at `/sign-in` and `/sign-up`
 
-**Migration SQL sketch:**
+**Migration SQL:**
 ```sql
--- New account table
-CREATE TABLE accounts (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  email text UNIQUE NOT NULL,
-  password_hash text,  -- nullable during migration
-  display_name text NOT NULL,
-  email_verified boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE UNIQUE INDEX accounts_email_idx ON accounts (lower(email));
-
 -- New role enum
 CREATE TYPE membership_role AS ENUM ('admin', 'member', 'viewer');
 
 -- Evolve members table
-ALTER TABLE members ADD COLUMN account_id uuid REFERENCES accounts(id);
+ALTER TABLE members ADD COLUMN clerk_user_id text;
 ALTER TABLE members ADD COLUMN role membership_role NOT NULL DEFAULT 'member';
 
--- Backfill: create accounts from unique emails
-INSERT INTO accounts (email, display_name)
-SELECT DISTINCT ON (lower(email)) lower(email), nickname
-FROM members
-ORDER BY lower(email), last_active_at DESC;
-
--- Link members to accounts
-UPDATE members SET account_id = accounts.id
-FROM accounts
-WHERE lower(members.email) = lower(accounts.email);
-
--- Make account_id NOT NULL after backfill
-ALTER TABLE members ALTER COLUMN account_id SET NOT NULL;
+CREATE INDEX members_clerk_user_id_idx ON members (clerk_user_id);
 ```
 
-### Phase B: Dual Auth (Backward-Compatible)
+### Phase 2: UI + RBAC (maps to old Phase C)
 
-**Goal:** Support both old session tokens and new account-based auth simultaneously.
+1. **Band switcher** in nav/sidebar
+2. **RBAC enforcement** in API routes
+3. **Account settings** via Clerk `<UserButton>` / `<UserProfile>`
+4. **Update member references in UI** to show band-specific nicknames
 
-1. **Add account-level session table:**
-   ```sql
-   CREATE TABLE account_sessions (
-     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-     account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-     session_token text NOT NULL UNIQUE DEFAULT encode(gen_random_bytes(32), 'hex'),
-     expires_at timestamptz NOT NULL,
-     created_at timestamptz NOT NULL DEFAULT now()
-   );
-   ```
-2. **Update `getAuthContext()`** to check both auth paths:
-   - First try new `bb_account_session` cookie → look up account → resolve membership for active band
-   - Fall back to old `bb_session` cookie → existing member lookup
-3. **Add login/signup API routes** (`/api/auth/login`, `/api/auth/signup`)
-4. **Add password-set flow** for existing members who don't have a password yet
-5. **Add band-switching API** (`/api/auth/switch-band`) that updates `bb_band` cookie without re-auth
-
-### Phase C: UI Migration
-
-**Goal:** Update all user-facing flows to use accounts.
-
-1. **New landing page flows:**
-   - Sign up (email + password + display name)
-   - Log in (email + password)
-   - Create band (logged-in user creates a band, becomes admin)
-   - Join band (logged-in user joins via invite link)
-2. **Settings page:**
-   - Account settings (email, password, display name) — separate from band settings
-   - Band switcher in nav/sidebar
-3. **Update member references in UI:**
-   - Show band-specific nickname where relevant (lyrics, versions)
-   - Show account display name in account-level contexts
-4. **Migrate session recovery flow:**
-   - Replace email+passcode recovery with standard "forgot password" flow
-   - Keep passcode for band-level access gating (join only)
-5. **Deprecate old join flow:**
-   - Invite link now requires login/signup first, then joins the band
-
-### Phase D: Cleanup
-
-**Goal:** Remove legacy auth, rename tables, tighten constraints.
+### Phase 3: Cleanup (maps to old Phase D)
 
 1. **Rename `members` → `memberships`** (with backward-compat view if needed)
-2. **Drop deprecated columns:** `members.email`, `members.session_token`
-3. **Update all TypeScript types** (Member → Membership, add Account type)
-4. **Update RLS policies** to use account-level auth
-5. **Remove old session cookie logic** (`bb_session`)
-6. **Run final data integrity checks**
+2. **Drop deprecated columns:** `email`, `session_token`
+3. **Make `clerk_user_id` NOT NULL** after backfill
+4. **Update all TypeScript types** (Member → Membership)
+5. **Run final data integrity checks**
 
 ---
 
@@ -201,36 +144,28 @@ ALTER TABLE members ALTER COLUMN account_id SET NOT NULL;
 
 | Current Route | Change | Notes |
 |---------------|--------|-------|
-| `POST /api/bands/create` | Requires logged-in account | Creator gets `admin` role |
-| `POST /api/bands/join` | Requires logged-in account | Passcode still required; creates membership |
-| `GET /api/auth/me` | Returns account + active membership | Band context from `bb_band` cookie |
-| `POST /api/auth/recover/*` | Replaced by login + forgot-password | Remove after Phase D |
-| **NEW** `POST /api/auth/signup` | Create account | Email + password + display name |
-| **NEW** `POST /api/auth/login` | Log in | Email + password → session |
-| **NEW** `POST /api/auth/logout` | Log out | Clear session |
+| `POST /api/bands/create` | Requires Clerk auth | Creator gets `admin` role |
+| `POST /api/bands/join` | Requires Clerk auth | Passcode still required; creates membership |
+| `GET /api/auth/me` | Returns Clerk user + active membership | Band context from `bb_band` cookie |
+| `POST /api/auth/recover/*` | **Deleted** | Clerk handles password reset |
 | **NEW** `POST /api/auth/switch-band` | Switch active band | Updates `bb_band` cookie |
-| **NEW** `GET /api/auth/bands` | List user's bands | Returns all memberships |
-| **NEW** `PUT /api/auth/account` | Update account settings | Email, password, display name |
+| **NEW** `GET /api/auth/bands` | List user's bands | Returns all memberships for Clerk user |
+
+**Routes eliminated by Clerk** (no longer needed):
+- `POST /api/auth/signup` — Clerk `<SignUp>` component
+- `POST /api/auth/login` — Clerk `<SignIn>` component
+- `POST /api/auth/logout` — Clerk `<UserButton>` sign-out
+- `PUT /api/auth/account` — Clerk `<UserProfile>` component
 
 ---
 
 ## 6. TypeScript Type Changes
 
 ```typescript
-// NEW
-export interface Account {
-  id: string;
-  email: string;
-  display_name: string;
-  email_verified: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 // EVOLVED (from Member)
 export interface Membership {
   id: string;
-  account_id: string;
+  clerk_user_id: string;
   band_id: string;
   nickname: string;
   role: 'admin' | 'member' | 'viewer';
@@ -240,7 +175,7 @@ export interface Membership {
 
 // UPDATED
 export interface AuthContext {
-  account: Account;
+  userId: string;        // Clerk user ID
   membership: Membership;
   band: Band;
 }
@@ -269,11 +204,11 @@ export interface AuthContext {
 
 | Risk | Mitigation |
 |------|-----------|
-| Duplicate emails across bands point to different people | During backfill, create one account per unique email. If contested, the account holder can change email on one membership. |
+| Duplicate emails across bands point to different people | Same as before — one Clerk user per unique email. Band-specific identity preserved via membership nicknames. |
 | Members with no email (shouldn't exist, but defensive) | Migration script skips these; flag for manual review |
-| Existing session tokens stop working | Phase B maintains dual auth; old tokens work until Phase D cutover |
+| Existing session tokens stop working | Dual-auth grace period: old `bb_session` tokens work alongside Clerk until Phase 3 cutover |
 | FK references to `members.id` break on rename | `memberships` table keeps same `id` values; rename is transparent to FKs |
-| Password-less accounts after migration | Grace period: accounts without passwords use "set password" flow on next login. Old session tokens continue to work. |
+| Clerk user creation for existing members | Use Clerk Backend API to create users, link via `clerk_user_id` |
 | Band creator unknown (for admin role assignment) | Heuristic: earliest `created_at` member in each band gets admin role |
 
 ---
@@ -282,33 +217,31 @@ export interface AuthContext {
 
 Each phase must include:
 
-- **Unit tests** for new auth functions (account creation, login, session validation, role checks)
-- **Integration tests** for API routes (signup, login, switch-band, dual-auth fallback)
+- **Unit tests** for new auth functions (`getAuthContext` with Clerk, role checks)
+- **Integration tests** for API routes (band create/join with Clerk auth, band switching)
 - **Migration tests** verifying:
-  - Account backfill correctness (email dedup, display name selection)
-  - FK integrity after `account_id` addition
-  - Dual-auth works for both old and new sessions
+  - `clerk_user_id` backfill correctness
+  - FK integrity after column additions
   - Role assignment accuracy
 - **E2E smoke tests** for critical flows:
+  - New user can sign up via Clerk, create band, invite member
   - Existing user can still access their band after migration
-  - New user can sign up, create band, invite member
   - Band switching works without re-login
 
 ---
 
 ## 10. Rollback Plan
 
-- **Phase A:** Drop `account_id` column, drop `accounts` table, drop `role` column
-- **Phase B:** Remove new auth routes, revert `getAuthContext()` to original
-- **Phase C:** Revert UI to old flows (git revert)
-- **Phase D:** Not easily reversible — this is the point of no return. Only execute after thorough Phase B+C validation.
+- **Phase 1:** Remove `clerk_user_id` column, remove `role` column, revert `getAuthContext()`, uninstall `@clerk/nextjs`
+- **Phase 2:** Revert UI to old flows (git revert)
+- **Phase 3:** Not easily reversible — this is the point of no return. Only execute after thorough Phase 1+2 validation.
 
 ---
 
 ## 11. Open Questions
 
-1. **OAuth providers?** Should we support Google/GitHub login in addition to email+password? (Recommendation: defer to post-migration enhancement)
-2. **Email verification?** Required for password reset. Should we enforce on signup or allow a grace period? (Recommendation: optional at signup, required for password reset)
+1. ~~**OAuth providers?**~~ Resolved: Clerk provides Google/GitHub login out of the box.
+2. ~~**Email verification?**~~ Resolved: Clerk handles this automatically.
 3. **Multi-band session UX?** Sidebar band switcher vs. separate dashboard? (Recommendation: nav-level band switcher)
 4. **Viewer role use case?** Is read-only access needed for V1 of accounts, or can we ship with just admin+member? (Recommendation: ship admin+member first, add viewer later)
-5. **Migration timeline?** How long is the dual-auth grace period before Phase D cleanup? (Recommendation: 90 days)
+5. ~~**Migration timeline?**~~ Simplified: no dual-auth grace period needed with Clerk's session management.

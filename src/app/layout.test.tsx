@@ -10,6 +10,14 @@ vi.mock("@vercel/analytics/next", () => ({
   Analytics: () => <div data-testid="vercel-analytics" />,
 }));
 
+vi.mock("@clerk/nextjs", () => ({
+  ClerkProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  Show: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SignInButton: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SignUpButton: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  UserButton: () => <div data-testid="user-button" />,
+}));
+
 import RootLayout from "./layout";
 
 describe("RootLayout", () => {

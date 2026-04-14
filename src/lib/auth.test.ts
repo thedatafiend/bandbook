@@ -23,13 +23,19 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 vi.mock("@/lib/session", () => ({
-  getSessionCookies: vi.fn(),
+  getBandCookie: vi.fn(),
+}));
+
+vi.mock("@clerk/nextjs/server", () => ({
+  auth: vi.fn(),
 }));
 
 import { getAuthContext } from "./auth";
-import { getSessionCookies } from "@/lib/session";
+import { getBandCookie } from "@/lib/session";
+import { auth } from "@clerk/nextjs/server";
 
-const mockGetSessionCookies = vi.mocked(getSessionCookies);
+const mockGetBandCookie = vi.mocked(getBandCookie);
+const mockAuth = vi.mocked(auth);
 
 describe("getAuthContext", () => {
   beforeEach(() => {
@@ -46,43 +52,42 @@ describe("getAuthContext", () => {
     });
   });
 
-  it("returns null when no session cookies", async () => {
-    mockGetSessionCookies.mockResolvedValue({ sessionToken: null, bandId: null });
+  it("returns null when Clerk session has no userId", async () => {
+    mockAuth.mockResolvedValue({ userId: null } as never);
     expect(await getAuthContext()).toBeNull();
   });
 
-  it("returns null when session token is missing", async () => {
-    mockGetSessionCookies.mockResolvedValue({ sessionToken: null, bandId: "band-1" });
+  it("returns null when band cookie is missing", async () => {
+    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
+    mockGetBandCookie.mockResolvedValue(null);
     expect(await getAuthContext()).toBeNull();
   });
 
-  it("returns null when band ID is missing", async () => {
-    mockGetSessionCookies.mockResolvedValue({ sessionToken: "tok", bandId: null });
-    expect(await getAuthContext()).toBeNull();
-  });
-
-  it("returns null when member not found", async () => {
-    mockGetSessionCookies.mockResolvedValue({ sessionToken: "tok", bandId: "band-1" });
+  it("returns null when member not found for clerk_user_id + band_id", async () => {
+    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
+    mockGetBandCookie.mockResolvedValue("band-1");
     singleResults = [{ data: null }];
     expect(await getAuthContext()).toBeNull();
   });
 
   it("returns null when band not found", async () => {
-    mockGetSessionCookies.mockResolvedValue({ sessionToken: "tok", bandId: "band-1" });
+    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
+    mockGetBandCookie.mockResolvedValue("band-1");
     singleResults = [
-      { data: { id: "m1", band_id: "band-1", nickname: "Alex" } },
+      { data: { id: "m1", band_id: "band-1", nickname: "Alex", clerk_user_id: "user_123" } },
       { data: null },
     ];
     expect(await getAuthContext()).toBeNull();
   });
 
-  it("returns member and band when session is valid", async () => {
-    mockGetSessionCookies.mockResolvedValue({ sessionToken: "tok", bandId: "band-1" });
-    const member = { id: "m1", band_id: "band-1", nickname: "Alex" };
+  it("returns userId, member, and band when session is valid", async () => {
+    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
+    mockGetBandCookie.mockResolvedValue("band-1");
+    const member = { id: "m1", band_id: "band-1", nickname: "Alex", clerk_user_id: "user_123" };
     const band = { id: "band-1", name: "The Band" };
     singleResults = [{ data: member }, { data: band }];
 
     const result = await getAuthContext();
-    expect(result).toEqual({ member, band });
+    expect(result).toEqual({ userId: "user_123", member, band });
   });
 });

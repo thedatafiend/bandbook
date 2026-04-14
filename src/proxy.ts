@@ -1,36 +1,23 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-export default function proxy(request: NextRequest) {
-  const sessionToken = request.cookies.get("bb_session")?.value;
-  const bandId = request.cookies.get("bb_band")?.value;
-  const { pathname } = request.nextUrl;
+const isPublicRoute = createRouteMatcher([
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/getting-started",
+  "/api/webhook(.*)",
+]);
 
-  const isAuthPage = pathname === "/" || pathname.startsWith("/join");
-  const isPublicPage = isAuthPage || pathname.startsWith("/getting-started");
-  const isApi = pathname.startsWith("/api");
-
-  // Let API routes handle their own auth
-  if (isApi) return NextResponse.next();
-
-  // No session → redirect to landing (unless on a public page)
-  if (!sessionToken || !bandId) {
-    if (isPublicPage) return NextResponse.next();
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
+export default clerkMiddleware(async (auth, request) => {
+  if (!isPublicRoute(request)) {
+    await auth.protect();
   }
-
-  // Has session + on auth page (login/join) → redirect to songs
-  if (isAuthPage) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/songs";
-    return NextResponse.redirect(url);
-  }
-
-  return NextResponse.next();
-}
+});
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    // Skip Next.js internals and all static files, unless found in search params
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // Always run for API routes
+    "/(api|trpc)(.*)",
+  ],
 };

@@ -1,26 +1,32 @@
+import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { getSessionCookies } from "@/lib/session";
+import { getBandCookie } from "@/lib/session";
 import type { Member, Band } from "@/lib/supabase/types";
 
 export interface AuthContext {
+  userId: string;
   member: Member;
   band: Band;
 }
 
 /**
- * Verify the current session and return the authenticated member + band.
- * Returns null if the session is invalid.
+ * Verify the current Clerk session and return the authenticated user's
+ * membership + band for the active band context.
+ * Returns null if unauthenticated or no matching membership.
  */
 export async function getAuthContext(): Promise<AuthContext | null> {
-  const { sessionToken, bandId } = await getSessionCookies();
-  if (!sessionToken || !bandId) return null;
+  const { userId } = await auth();
+  if (!userId) return null;
+
+  const bandId = await getBandCookie();
+  if (!bandId) return null;
 
   const supabase = await createClient();
 
   const { data: member } = await supabase
     .from("members")
     .select("*")
-    .eq("session_token", sessionToken)
+    .eq("clerk_user_id", userId)
     .eq("band_id", bandId)
     .single<Member>();
 
@@ -34,5 +40,5 @@ export async function getAuthContext(): Promise<AuthContext | null> {
 
   if (!band) return null;
 
-  return { member, band };
+  return { userId, member, band };
 }

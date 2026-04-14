@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { SessionRecovery } from "@/components/session-recovery";
 
 interface VersionDetail {
   id: string;
@@ -107,17 +106,8 @@ export default function SongDetailPage() {
   }
 
   if (sessionExpired) {
-    return (
-      <main className="flex flex-1 flex-col max-w-lg mx-auto w-full">
-        <SessionRecovery
-          onRecovered={() => {
-            setSessionExpired(false);
-            setLoading(true);
-            fetchSong();
-          }}
-        />
-      </main>
-    );
+    router.push("/sign-in");
+    return null;
   }
 
   if (!song) {

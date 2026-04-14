@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { SessionRecovery } from "@/components/session-recovery";
 
 interface AuthMember {
   id: string;
@@ -69,17 +68,8 @@ export default function SettingsPage() {
   }
 
   if (sessionExpired) {
-    return (
-      <main className="flex flex-1 flex-col max-w-lg mx-auto w-full">
-        <SessionRecovery
-          onRecovered={() => {
-            setSessionExpired(false);
-            setLoading(true);
-            fetchData();
-          }}
-        />
-      </main>
-    );
+    router.push("/sign-in");
+    return null;
   }
 
   return (

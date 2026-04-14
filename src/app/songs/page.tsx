@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { NewSongModal } from "@/components/new-song-modal";
-import { SessionRecovery } from "@/components/session-recovery";
 import { cacheGet, cacheSet, cacheInvalidate } from "@/lib/cache";
 
 interface MemberInfo {
@@ -164,17 +163,8 @@ export default function SongsPage() {
   }
 
   if (sessionExpired) {
-    return (
-      <main className="flex flex-1 flex-col max-w-lg mx-auto w-full">
-        <SessionRecovery
-          onRecovered={() => {
-            setSessionExpired(false);
-            setLoading(true);
-            fetchData();
-          }}
-        />
-      </main>
-    );
+    router.push("/sign-in");
+    return null;
   }
 
   return (

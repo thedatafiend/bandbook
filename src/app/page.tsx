@@ -4,9 +4,8 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import { CreateBandForm } from "@/components/create-band-form";
 import { JoinBandForm } from "@/components/join-band-form";
-import { RecoverForm } from "@/components/recover-form";
 
-type Mode = "home" | "create" | "join" | "recover";
+type Mode = "home" | "create" | "join";
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("home");
@@ -26,8 +25,6 @@ export default function Home() {
         <h1 className="text-5xl font-bold tracking-tight mb-3">BandBook</h1>
         <p className="text-lg text-muted mb-8">
           A shared songwriting workspace for your band.
-          <br />
-          Just your email, a passcode, and you&apos;re in.
         </p>
 
         <div className="flex flex-col gap-3 w-full max-w-xs">
@@ -42,12 +39,6 @@ export default function Home() {
             className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
           >
             Join a Band
-          </button>
-          <button
-            onClick={() => scrollToAction("recover")}
-            className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
-          >
-            Return to My Bands
           </button>
         </div>
 
@@ -101,8 +92,8 @@ export default function Home() {
         <h2 className="text-xl font-semibold text-center mb-8">What You Get</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FeatureCard
-            title="Simple Access"
-            description="Email and a shared passcode — no complex setup needed."
+            title="Secure Access"
+            description="Sign in with your email and password. Band access is controlled with a passcode."
             icon={
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
@@ -146,8 +137,8 @@ export default function Home() {
             }
           />
           <FeatureCard
-            title="Pick Up Where You Left Off"
-            description="Sign back in from any device with your email and the band passcode."
+            title="Multiple Bands"
+            description="One account, multiple bands. Switch between them without re-logging in."
             icon={
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
@@ -179,17 +170,10 @@ export default function Home() {
               >
                 Join a Band
               </button>
-              <button
-                onClick={() => setMode("recover")}
-                className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
-              >
-                Return to My Bands
-              </button>
             </div>
           )}
           {mode === "create" && <CreateBandForm onBack={() => setMode("home")} />}
           {mode === "join" && <JoinBandForm onBack={() => setMode("home")} />}
-          {mode === "recover" && <RecoverForm onBack={() => setMode("home")} />}
         </div>
       </section>
 
