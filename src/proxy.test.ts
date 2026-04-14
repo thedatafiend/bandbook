@@ -78,8 +78,13 @@ describe("proxy", () => {
     expect(mockProtect).toHaveBeenCalled();
   });
 
-  it("protects root route", async () => {
+  it("does not protect root route (public landing page)", async () => {
     await container.handler!(createAuthFn(), createRequest("/"));
-    expect(mockProtect).toHaveBeenCalled();
+    expect(mockProtect).not.toHaveBeenCalled();
+  });
+
+  it("does not protect join routes", async () => {
+    await container.handler!(createAuthFn(), createRequest("/join/abc123"));
+    expect(mockProtect).not.toHaveBeenCalled();
   });
 });

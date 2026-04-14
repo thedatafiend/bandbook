@@ -1,15 +1,46 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth, SignInButton, SignUpButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { CreateBandForm } from "@/components/create-band-form";
 import { JoinBandForm } from "@/components/join-band-form";
 
+interface ClaimedBand {
+  member_id: string;
+  band_id: string;
+  band_name: string;
+  nickname: string;
+}
+
 type Mode = "home" | "create" | "join";
 
 export default function Home() {
+  const router = useRouter();
+  const { isSignedIn } = useAuth();
   const [mode, setMode] = useState<Mode>("home");
+  const [claimedBands, setClaimedBands] = useState<ClaimedBand[]>([]);
+  const [claiming, setClaiming] = useState(false);
   const actionRef = useRef<HTMLDivElement>(null);
+
+  // On mount, claim any existing memberships linked to this email
+  useEffect(() => {
+    if (!isSignedIn) return;
+
+    setClaiming(true);
+    fetch("/api/auth/claim-memberships", { method: "POST" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.count === 1) {
+          // Single band — go straight in
+          router.push("/songs");
+        } else if (data.count > 1) {
+          setClaimedBands(data.claimed);
+        }
+      })
+      .finally(() => setClaiming(false));
+  }, [isSignedIn, router]);
 
   function scrollToAction(m: Mode) {
     setMode(m);
@@ -28,18 +59,35 @@ export default function Home() {
         </p>
 
         <div className="flex flex-col gap-3 w-full max-w-xs">
-          <button
-            onClick={() => scrollToAction("create")}
-            className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition"
-          >
-            Create a Band
-          </button>
-          <button
-            onClick={() => scrollToAction("join")}
-            className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
-          >
-            Join a Band
-          </button>
+          {isSignedIn ? (
+            <>
+              <button
+                onClick={() => scrollToAction("create")}
+                className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition"
+              >
+                Create a Band
+              </button>
+              <button
+                onClick={() => scrollToAction("join")}
+                className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
+              >
+                Join a Band
+              </button>
+            </>
+          ) : (
+            <>
+              <SignUpButton>
+                <button className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition">
+                  Get Started
+                </button>
+              </SignUpButton>
+              <SignInButton>
+                <button className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition">
+                  Sign In
+                </button>
+              </SignInButton>
+            </>
+          )}
         </div>
 
         <Link
@@ -148,6 +196,37 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Claimed Bands (shown when backfill finds multiple bands) */}
+      {claimedBands.length > 1 && (
+        <section className="w-full max-w-lg mb-16">
+          <div className="rounded-xl bg-surface border border-border p-6 flex flex-col items-center">
+            <h2 className="text-xl font-semibold mb-2">Welcome Back</h2>
+            <p className="text-muted text-sm mb-4 text-center">
+              We found your existing bands. Select one to continue.
+            </p>
+            <div className="flex flex-col gap-2 w-full max-w-xs">
+              {claimedBands.map((b) => (
+                <button
+                  key={b.member_id}
+                  onClick={async () => {
+                    await fetch("/api/auth/switch-band", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ bandId: b.band_id }),
+                    });
+                    router.push("/songs");
+                  }}
+                  className="text-left rounded-lg border border-border bg-surface px-4 py-3 hover:bg-surface-alt transition"
+                >
+                  <p className="text-foreground font-medium">{b.band_name}</p>
+                  <p className="text-muted-dim text-xs">as {b.nickname}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Action Section */}
       <section
         ref={actionRef}
@@ -155,25 +234,47 @@ export default function Home() {
         className="w-full max-w-lg mb-16"
       >
         <div className="rounded-xl bg-surface border border-border p-6 flex flex-col items-center">
-          {mode === "home" && (
+          {!isSignedIn ? (
             <div className="flex flex-col items-center gap-4 w-full max-w-xs">
               <h2 className="text-xl font-semibold">Get Started</h2>
-              <button
-                onClick={() => setMode("create")}
-                className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition"
-              >
-                Create a Band
-              </button>
-              <button
-                onClick={() => setMode("join")}
-                className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
-              >
-                Join a Band
-              </button>
+              <p className="text-muted text-sm text-center">
+                Create a free account to start your band&apos;s songwriting workspace.
+              </p>
+              <SignUpButton>
+                <button className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition">
+                  Sign Up Free
+                </button>
+              </SignUpButton>
+              <p className="text-muted-dim text-xs text-center">
+                Already have an account?{" "}
+                <SignInButton>
+                  <button className="text-accent hover:underline">Sign in</button>
+                </SignInButton>
+              </p>
             </div>
+          ) : (
+            <>
+              {mode === "home" && !claiming && (
+                <div className="flex flex-col items-center gap-4 w-full max-w-xs">
+                  <h2 className="text-xl font-semibold">Get Started</h2>
+                  <button
+                    onClick={() => setMode("create")}
+                    className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition"
+                  >
+                    Create a Band
+                  </button>
+                  <button
+                    onClick={() => setMode("join")}
+                    className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition"
+                  >
+                    Join a Band
+                  </button>
+                </div>
+              )}
+              {mode === "create" && <CreateBandForm onBack={() => setMode("home")} />}
+              {mode === "join" && <JoinBandForm onBack={() => setMode("home")} />}
+            </>
           )}
-          {mode === "create" && <CreateBandForm onBack={() => setMode("home")} />}
-          {mode === "join" && <JoinBandForm onBack={() => setMode("home")} />}
         </div>
       </section>
 

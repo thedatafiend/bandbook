@@ -6,6 +6,7 @@ type SupabaseQuery = {
   update: ReturnType<typeof vi.fn>;
   delete: ReturnType<typeof vi.fn>;
   eq: ReturnType<typeof vi.fn>;
+  is: ReturnType<typeof vi.fn>;
   ilike: ReturnType<typeof vi.fn>;
   in: ReturnType<typeof vi.fn>;
   order: ReturnType<typeof vi.fn>;
@@ -20,6 +21,7 @@ export function createMockSupabase() {
     update: vi.fn(),
     delete: vi.fn(),
     eq: vi.fn(),
+    is: vi.fn(),
     ilike: vi.fn(),
     in: vi.fn(),
     order: vi.fn(),
