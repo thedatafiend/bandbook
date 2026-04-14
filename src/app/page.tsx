@@ -79,12 +79,12 @@ export default function Home() {
             </>
           ) : (
             <>
-              <SignUpButton>
+              <SignUpButton forceRedirectUrl="/">
                 <button className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition">
                   Get Started
                 </button>
               </SignUpButton>
-              <SignInButton>
+              <SignInButton forceRedirectUrl="/">
                 <button className="w-full rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition">
                   Sign In
                 </button>
@@ -243,14 +243,14 @@ export default function Home() {
               <p className="text-muted text-sm text-center">
                 Create a free account to start your band&apos;s songwriting workspace.
               </p>
-              <SignUpButton>
+              <SignUpButton forceRedirectUrl="/">
                 <button className="w-full rounded-lg bg-accent text-white font-semibold py-3 px-4 hover:bg-accent-hover transition">
                   Sign Up Free
                 </button>
               </SignUpButton>
               <p className="text-muted-dim text-xs text-center">
                 Already have an account?{" "}
-                <SignInButton>
+                <SignInButton forceRedirectUrl="/">
                   <button className="text-accent hover:underline">Sign in</button>
                 </SignInButton>
               </p>

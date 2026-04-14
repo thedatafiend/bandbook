@@ -47,12 +47,12 @@ export default function RootLayout({
         <ClerkProvider>
           <header className="flex justify-end items-center px-6 py-3 gap-4">
             <Show when="signed-out">
-              <SignInButton>
+              <SignInButton forceRedirectUrl="/">
                 <button className="text-sm text-muted hover:text-foreground transition">
                   Sign In
                 </button>
               </SignInButton>
-              <SignUpButton>
+              <SignUpButton forceRedirectUrl="/">
                 <button className="text-sm rounded-lg bg-accent text-white font-medium py-2 px-4 hover:bg-accent-hover transition">
                   Sign Up
                 </button>
