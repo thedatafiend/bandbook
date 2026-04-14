@@ -7,7 +7,7 @@ import Link from "next/link";
 import { CreateBandForm } from "@/components/create-band-form";
 import { JoinBandForm } from "@/components/join-band-form";
 
-interface ClaimedBand {
+interface UserBand {
   member_id: string;
   band_id: string;
   band_name: string;
@@ -20,11 +20,11 @@ export default function Home() {
   const router = useRouter();
   const { isSignedIn, isLoaded } = useAuth();
   const [mode, setMode] = useState<Mode>("home");
-  const [claimedBands, setClaimedBands] = useState<ClaimedBand[]>([]);
+  const [userBands, setUserBands] = useState<UserBand[]>([]);
   const [claiming, setClaiming] = useState(false);
   const actionRef = useRef<HTMLDivElement>(null);
 
-  // On mount, claim any existing memberships linked to this email
+  // After auth, claim any unclaimed memberships and load user's bands
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
 
@@ -36,7 +36,7 @@ export default function Home() {
           // Single band — go straight in
           router.push("/songs");
         } else if (data.count > 1) {
-          setClaimedBands(data.claimed);
+          setUserBands(data.bands);
         }
       })
       .catch(() => {
@@ -199,16 +199,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Claimed Bands (shown when backfill finds multiple bands) */}
-      {claimedBands.length > 1 && (
+      {/* Band Picker (shown when user has multiple bands) */}
+      {userBands.length > 1 && (
         <section className="w-full max-w-lg mb-16">
           <div className="rounded-xl bg-surface border border-border p-6 flex flex-col items-center">
             <h2 className="text-xl font-semibold mb-2">Welcome Back</h2>
             <p className="text-muted text-sm mb-4 text-center">
-              We found your existing bands. Select one to continue.
+              Select a band to continue.
             </p>
             <div className="flex flex-col gap-2 w-full max-w-xs">
-              {claimedBands.map((b) => (
+              {userBands.map((b) => (
                 <button
                   key={b.member_id}
                   onClick={async () => {

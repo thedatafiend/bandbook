@@ -38,105 +38,118 @@ describe("POST /api/auth/claim-memberships", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns 401 when Clerk user not found", async () => {
-    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
-    mockCurrentUser.mockResolvedValue(null as never);
-    const res = await POST();
-    expect(res.status).toBe(401);
-  });
-
-  it("returns empty when user has no email", async () => {
-    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
-    mockCurrentUser.mockResolvedValue({ primaryEmailAddress: null } as never);
-    const res = await POST();
-    const data = await res.json();
-    expect(data).toEqual({ claimed: [], count: 0 });
-  });
-
-  it("returns empty when no unlinked members match email", async () => {
+  it("returns empty when user has no memberships", async () => {
     mockAuth.mockResolvedValue({ userId: "user_123" } as never);
     mockCurrentUser.mockResolvedValue({
       primaryEmailAddress: { emailAddress: "alex@band.com" },
     } as never);
+    // No unclaimed members
     mockQuery.ilike.mockResolvedValueOnce({ data: [], error: null });
+    // No existing memberships
+    mockQuery.eq.mockResolvedValueOnce({ data: [], error: null });
 
     const res = await POST();
     const data = await res.json();
-    expect(data).toEqual({ claimed: [], count: 0 });
+    expect(data).toEqual({ bands: [], count: 0 });
   });
 
-  it("claims unlinked members and returns them", async () => {
+  it("claims unclaimed members and returns all bands", async () => {
     mockAuth.mockResolvedValue({ userId: "user_123" } as never);
     mockCurrentUser.mockResolvedValue({
       primaryEmailAddress: { emailAddress: "alex@band.com" },
     } as never);
 
-    const unlinked = [
-      { id: "m1", band_id: "b1", nickname: "Alex", bands: { id: "b1", name: "Rockers" } },
-      { id: "m2", band_id: "b2", nickname: "Al", bands: { id: "b2", name: "Jammers" } },
-    ];
-    mockQuery.ilike.mockResolvedValueOnce({ data: unlinked, error: null });
+    // Unclaimed members found
+    const unclaimed = [{ id: "m1" }];
+    mockQuery.ilike.mockResolvedValueOnce({ data: unclaimed, error: null });
+    // Claim update succeeds
     mockQuery.in.mockResolvedValueOnce({ error: null });
-
-    const res = await POST();
-    const data = await res.json();
-
-    expect(data.count).toBe(2);
-    expect(data.claimed).toEqual([
-      { member_id: "m1", band_id: "b1", band_name: "Rockers", nickname: "Alex" },
-      { member_id: "m2", band_id: "b2", band_name: "Jammers", nickname: "Al" },
-    ]);
-  });
-
-  it("sets band cookie when exactly one band is claimed", async () => {
-    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
-    mockCurrentUser.mockResolvedValue({
-      primaryEmailAddress: { emailAddress: "alex@band.com" },
-    } as never);
-
-    const unlinked = [
+    // All memberships query returns the now-claimed member
+    const allMemberships = [
       { id: "m1", band_id: "b1", nickname: "Alex", bands: { id: "b1", name: "Rockers" } },
     ];
-    mockQuery.ilike.mockResolvedValueOnce({ data: unlinked, error: null });
-    mockQuery.in.mockResolvedValueOnce({ error: null });
+    mockQuery.eq.mockResolvedValueOnce({ data: allMemberships, error: null });
 
     const res = await POST();
     const data = await res.json();
 
     expect(data.count).toBe(1);
-    expect(mockSetBandCookie).toHaveBeenCalledWith("b1");
+    expect(data.bands).toEqual([
+      { member_id: "m1", band_id: "b1", band_name: "Rockers", nickname: "Alex" },
+    ]);
   });
 
-  it("does not set band cookie when multiple bands are claimed", async () => {
+  it("returns existing bands even when nothing to claim", async () => {
     mockAuth.mockResolvedValue({ userId: "user_123" } as never);
     mockCurrentUser.mockResolvedValue({
       primaryEmailAddress: { emailAddress: "alex@band.com" },
     } as never);
 
-    const unlinked = [
+    // No unclaimed members
+    mockQuery.ilike.mockResolvedValueOnce({ data: [], error: null });
+    // Already-linked memberships exist
+    const existing = [
       { id: "m1", band_id: "b1", nickname: "Alex", bands: { id: "b1", name: "Rockers" } },
       { id: "m2", band_id: "b2", nickname: "Al", bands: { id: "b2", name: "Jammers" } },
     ];
-    mockQuery.ilike.mockResolvedValueOnce({ data: unlinked, error: null });
-    mockQuery.in.mockResolvedValueOnce({ error: null });
+    mockQuery.eq.mockResolvedValueOnce({ data: existing, error: null });
+
+    const res = await POST();
+    const data = await res.json();
+
+    expect(data.count).toBe(2);
+    expect(data.bands).toHaveLength(2);
+  });
+
+  it("sets band cookie when user has exactly one band", async () => {
+    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
+    mockCurrentUser.mockResolvedValue({
+      primaryEmailAddress: { emailAddress: "alex@band.com" },
+    } as never);
+
+    mockQuery.ilike.mockResolvedValueOnce({ data: [], error: null });
+    const existing = [
+      { id: "m1", band_id: "b1", nickname: "Alex", bands: { id: "b1", name: "Rockers" } },
+    ];
+    mockQuery.eq.mockResolvedValueOnce({ data: existing, error: null });
+
+    await POST();
+    expect(mockSetBandCookie).toHaveBeenCalledWith("b1");
+  });
+
+  it("does not set band cookie when user has multiple bands", async () => {
+    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
+    mockCurrentUser.mockResolvedValue({
+      primaryEmailAddress: { emailAddress: "alex@band.com" },
+    } as never);
+
+    mockQuery.ilike.mockResolvedValueOnce({ data: [], error: null });
+    const existing = [
+      { id: "m1", band_id: "b1", nickname: "Alex", bands: { id: "b1", name: "Rockers" } },
+      { id: "m2", band_id: "b2", nickname: "Al", bands: { id: "b2", name: "Jammers" } },
+    ];
+    mockQuery.eq.mockResolvedValueOnce({ data: existing, error: null });
 
     await POST();
     expect(mockSetBandCookie).not.toHaveBeenCalled();
   });
 
-  it("returns 500 when update fails", async () => {
+  it("skips claim step when user has no email", async () => {
     mockAuth.mockResolvedValue({ userId: "user_123" } as never);
     mockCurrentUser.mockResolvedValue({
-      primaryEmailAddress: { emailAddress: "alex@band.com" },
+      primaryEmailAddress: null,
     } as never);
 
-    const unlinked = [
+    // Should skip straight to membership query (no ilike call)
+    const existing = [
       { id: "m1", band_id: "b1", nickname: "Alex", bands: { id: "b1", name: "Rockers" } },
     ];
-    mockQuery.ilike.mockResolvedValueOnce({ data: unlinked, error: null });
-    mockQuery.in.mockResolvedValueOnce({ error: new Error("fail") });
+    mockQuery.eq.mockResolvedValueOnce({ data: existing, error: null });
 
     const res = await POST();
-    expect(res.status).toBe(500);
+    const data = await res.json();
+
+    expect(data.count).toBe(1);
+    expect(mockQuery.ilike).not.toHaveBeenCalled();
   });
 });

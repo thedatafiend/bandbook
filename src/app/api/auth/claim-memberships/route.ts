@@ -4,12 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { setBandCookie } from "@/lib/session";
 
 /**
- * Claims any existing member records that match the current Clerk user's
- * email but haven't been linked to a Clerk account yet.
+ * Claims any unclaimed member records matching the user's email, then
+ * returns ALL bands the user belongs to (both newly claimed and
+ * previously linked).
  *
- * This handles the migration path for users who had bands before Clerk
- * was introduced — they sign up with the same email and their old
- * memberships are automatically linked.
+ * This handles:
+ * - Migration backfill: existing members get linked on first sign-in
+ * - Returning users: always returns their bands for redirect/picker
+ * - New users: returns empty list so they can create/join a band
  */
 export async function POST() {
   const { userId } = await auth();
@@ -17,45 +19,35 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await currentUser();
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 401 });
-  }
-
-  const email = user.primaryEmailAddress?.emailAddress;
-  if (!email) {
-    return NextResponse.json({ claimed: [], count: 0 });
-  }
-
   const supabase = await createClient();
 
-  // Find unlinked members matching this email
-  const { data: unlinked } = await supabase
+  // Step 1: Claim any unclaimed members matching this user's email
+  const user = await currentUser();
+  const email = user?.primaryEmailAddress?.emailAddress;
+
+  if (email) {
+    const { data: unlinked } = await supabase
+      .from("members")
+      .select("id")
+      .is("clerk_user_id", null)
+      .ilike("email", email.toLowerCase());
+
+    if (unlinked && unlinked.length > 0) {
+      const memberIds = unlinked.map((m: { id: string }) => m.id);
+      await supabase
+        .from("members")
+        .update({ clerk_user_id: userId })
+        .in("id", memberIds);
+    }
+  }
+
+  // Step 2: Return ALL bands this user belongs to
+  const { data: memberships } = await supabase
     .from("members")
     .select("id, band_id, nickname, bands(id, name)")
-    .is("clerk_user_id", null)
-    .ilike("email", email.toLowerCase());
+    .eq("clerk_user_id", userId);
 
-  if (!unlinked || unlinked.length === 0) {
-    return NextResponse.json({ claimed: [], count: 0 });
-  }
-
-  // Claim them by setting clerk_user_id
-  const memberIds = unlinked.map((m: { id: string }) => m.id);
-
-  const { error: updateError } = await supabase
-    .from("members")
-    .update({ clerk_user_id: userId })
-    .in("id", memberIds);
-
-  if (updateError) {
-    return NextResponse.json(
-      { error: "Failed to claim memberships" },
-      { status: 500 }
-    );
-  }
-
-  const claimed = unlinked.map((m: Record<string, unknown>) => {
+  const bands = (memberships ?? []).map((m: Record<string, unknown>) => {
     const band = m.bands as { id: string; name: string } | null;
     return {
       member_id: m.id,
@@ -66,9 +58,9 @@ export async function POST() {
   });
 
   // If the user has exactly one band, set it as active automatically
-  if (claimed.length === 1) {
-    await setBandCookie(claimed[0].band_id as string);
+  if (bands.length === 1) {
+    await setBandCookie(bands[0].band_id as string);
   }
 
-  return NextResponse.json({ claimed, count: claimed.length });
+  return NextResponse.json({ bands, count: bands.length });
 }
