@@ -3,11 +3,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 
-interface AuthMember {
-  id: string;
-  email: string;
-}
-
 interface BandInfo {
   name: string;
   invite_token: string;
@@ -23,7 +18,6 @@ interface MemberInfo {
 export default function SettingsPage() {
   const router = useRouter();
   const [band, setBand] = useState<BandInfo | null>(null);
-  const [currentMember, setCurrentMember] = useState<AuthMember | null>(null);
   const [members, setMembers] = useState<MemberInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -50,7 +44,6 @@ export default function SettingsPage() {
 
     setSessionExpired(false);
     setBand(authData.band);
-    setCurrentMember({ id: authData.member.id, email: authData.member.email });
     setMembers(membersData.members ?? []);
     setLoading(false);
   }, []);
@@ -101,9 +94,6 @@ export default function SettingsPage() {
         <BandNameSection
           currentName={band?.name ?? ""}
           onUpdate={(newName) => setBand((b) => b ? { ...b, name: newName } : b)}
-        />
-        <RecoveryEmailSection
-          currentEmail={currentMember?.email ?? ""}
         />
         <InviteLinkSection
           inviteToken={band?.invite_token ?? ""}
@@ -229,77 +219,6 @@ function BandNameSection({
   );
 }
 
-function RecoveryEmailSection({
-  currentEmail,
-}: {
-  currentEmail: string;
-}) {
-  const [email, setEmail] = useState(currentEmail);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    setEmail(currentEmail);
-  }, [currentEmail]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setSuccess(false);
-    setLoading(true);
-
-    const res = await fetch("/api/members/email", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-
-    const data = await res.json();
-    setLoading(false);
-
-    if (!res.ok) {
-      setError(data.error ?? "Something went wrong");
-      return;
-    }
-
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
-  }
-
-  return (
-    <section>
-      <h2 className="text-lg font-semibold mb-3">Recovery Email</h2>
-      <p className="text-muted text-sm mb-4">
-        This email lets you get back in if you lose your session (e.g. cleared
-        cookies or new device).
-      </p>
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <input
-          type="email"
-          placeholder="Your email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
-        />
-
-        {error && <p className="text-red-400 text-sm">{error}</p>}
-        {success && <p className="text-emerald-400 text-sm">Email updated!</p>}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-lg border border-border-light text-foreground font-semibold py-2.5 px-4 text-sm hover:bg-surface-alt transition disabled:opacity-50"
-        >
-          {loading ? "Saving..." : "Update Email"}
-        </button>
-      </form>
-    </section>
-  );
-}
-
 function InviteLinkSection({
   inviteToken,
   onRegenerate,
@@ -339,7 +258,7 @@ function InviteLinkSection({
       try {
         await navigator.share({
           title: "Join my band on BandBook",
-          text: "Join my band on BandBook! You'll need the passcode to get in.",
+          text: "Join my band on BandBook! Create a free account, then use the passcode to join.",
           url: inviteUrl,
         });
       } catch {
@@ -371,8 +290,8 @@ function InviteLinkSection({
     <section>
       <h2 className="text-lg font-semibold mb-3">Invite Link</h2>
       <p className="text-muted text-sm mb-4">
-        Share this link with bandmates. They&apos;ll also need the passcode to
-        join.
+        Share this link with bandmates. They&apos;ll need to create a free
+        account first, then use the band passcode to join.
       </p>
 
       <div className="flex items-center gap-2 mb-3">
