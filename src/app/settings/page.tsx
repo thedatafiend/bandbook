@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { cacheGet, cacheSet } from "@/lib/cache";
 
 interface BandInfo {
+  id: string;
   name: string;
   invite_token: string;
 }
@@ -15,15 +17,28 @@ interface MemberInfo {
   last_active_at: string;
 }
 
+interface UserBand {
+  member_id: string;
+  band_id: string;
+  band_name: string;
+  nickname: string;
+}
+
 export default function SettingsPage() {
   const router = useRouter();
   const [band, setBand] = useState<BandInfo | null>(null);
   const [members, setMembers] = useState<MemberInfo[]>([]);
+  const [userBands, setUserBands] = useState<UserBand[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
 
   const fetchData = useCallback(async () => {
-    const authRes = await fetch("/api/auth/me");
+    // Fetch all data in parallel
+    const [authRes, membersRes, bandsRes] = await Promise.all([
+      fetch("/api/auth/me"),
+      fetch("/api/bands/members"),
+      fetch("/api/auth/claim-memberships", { method: "POST" }),
+    ]);
 
     if (authRes.status === 401) {
       setSessionExpired(true);
@@ -31,7 +46,11 @@ export default function SettingsPage() {
       return;
     }
 
-    const authData = await authRes.json();
+    const [authData, membersData, bandsData] = await Promise.all([
+      authRes.json(),
+      membersRes.json(),
+      bandsRes.json(),
+    ]);
 
     if (!authData.member) {
       setSessionExpired(true);
@@ -39,17 +58,33 @@ export default function SettingsPage() {
       return;
     }
 
-    const membersRes = await fetch("/api/bands/members");
-    const membersData = await membersRes.json();
-
     setSessionExpired(false);
     setBand(authData.band);
     setMembers(membersData.members ?? []);
+    setUserBands(bandsData.bands ?? []);
+    cacheSet("settings:band", authData.band);
+    cacheSet("settings:members", membersData.members ?? []);
+    cacheSet("settings:userBands", bandsData.bands ?? []);
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    fetchData();
+    // Show cached data immediately, then revalidate in background
+    const cachedBand = cacheGet<BandInfo>("settings:band");
+    const cachedMembers = cacheGet<MemberInfo[]>("settings:members");
+    const cachedUserBands = cacheGet<UserBand[]>("settings:userBands");
+
+    if (cachedBand && cachedMembers) {
+      setBand(cachedBand.data);
+      setMembers(cachedMembers.data);
+      setUserBands(cachedUserBands?.data ?? []);
+      setLoading(false);
+      if (cachedBand.stale || cachedMembers.stale) {
+        fetchData();
+      }
+    } else {
+      fetchData();
+    }
   }, [fetchData]);
 
   if (loading) {
@@ -104,29 +139,96 @@ export default function SettingsPage() {
         <ChangePasscodeSection />
         <MembersSection members={members} />
 
-        {/* More Bands */}
-        <section>
-          <h2 className="text-lg font-semibold mb-3">More Bands</h2>
-          <p className="text-muted text-sm mb-4">
-            Create a new band or join another one with an invite code.
-          </p>
-          <div className="flex gap-3">
-            <a
-              href="/?action=create"
-              className="flex-1 text-center rounded-lg bg-accent text-white font-semibold py-2.5 px-4 text-sm hover:bg-accent-hover transition"
-            >
-              Create a Band
-            </a>
-            <a
-              href="/?action=join"
-              className="flex-1 text-center rounded-lg border border-border-light text-foreground font-semibold py-2.5 px-4 text-sm hover:bg-surface-alt transition"
-            >
-              Join a Band
-            </a>
-          </div>
-        </section>
+        {/* Your Bands */}
+        <YourBandsSection
+          userBands={userBands}
+          currentBandId={band?.id ?? ""}
+        />
       </div>
     </main>
+  );
+}
+
+function YourBandsSection({
+  userBands,
+  currentBandId,
+}: {
+  userBands: UserBand[];
+  currentBandId: string;
+}) {
+  const [switching, setSwitching] = useState<string | null>(null);
+
+  async function handleSwitch(bandId: string) {
+    setSwitching(bandId);
+    const res = await fetch("/api/auth/switch-band", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bandId }),
+    });
+
+    if (res.ok) {
+      // Hard navigation to clear cached data for the old band
+      window.location.href = "/songs";
+    }
+    setSwitching(null);
+  }
+
+  return (
+    <section>
+      <h2 className="text-lg font-semibold mb-3">Your Bands</h2>
+      {userBands.length > 0 && (
+        <div className="flex flex-col gap-2 mb-4">
+          {userBands.map((b) => {
+            const isCurrent = b.band_id === currentBandId;
+            return (
+              <div
+                key={b.member_id}
+                className={`flex items-center justify-between rounded-lg border px-4 py-3 ${
+                  isCurrent
+                    ? "border-accent bg-surface-alt"
+                    : "border-border bg-surface"
+                }`}
+              >
+                <div>
+                  <p className="text-foreground font-medium">
+                    {b.band_name}
+                    {isCurrent && (
+                      <span className="ml-2 text-xs text-accent font-normal">
+                        Current
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-muted-dim text-xs">as {b.nickname}</p>
+                </div>
+                {!isCurrent && (
+                  <button
+                    onClick={() => handleSwitch(b.band_id)}
+                    disabled={switching === b.band_id}
+                    className="text-sm text-accent hover:underline transition disabled:opacity-50"
+                  >
+                    {switching === b.band_id ? "Switching..." : "Switch"}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className="flex gap-3">
+        <a
+          href="/?action=create"
+          className="flex-1 text-center rounded-lg bg-accent text-white font-semibold py-2.5 px-4 text-sm hover:bg-accent-hover transition"
+        >
+          Create a Band
+        </a>
+        <a
+          href="/?action=join"
+          className="flex-1 text-center rounded-lg border border-border-light text-foreground font-semibold py-2.5 px-4 text-sm hover:bg-surface-alt transition"
+        >
+          Join a Band
+        </a>
+      </div>
+    </section>
   );
 }
 
