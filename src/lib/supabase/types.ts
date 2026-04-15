@@ -16,12 +16,16 @@ export interface Band {
   created_at: string;
 }
 
+export type MembershipRole = "admin" | "member" | "viewer";
+
 export interface Member {
   id: string;
   band_id: string;
   nickname: string;
   email: string;
   session_token: string;
+  clerk_user_id: string | null;
+  role: MembershipRole;
   created_at: string;
   last_active_at: string;
 }

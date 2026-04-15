@@ -6,6 +6,7 @@ export const metadata = {
 };
 
 const tocItems = [
+  { id: "creating-an-account", label: "Creating an Account" },
   { id: "creating-a-band", label: "Creating a Band" },
   { id: "joining-a-band", label: "Joining a Band" },
   { id: "song-catalog", label: "Your Song Catalog" },
@@ -14,7 +15,6 @@ const tocItems = [
   { id: "lyrics-composer", label: "Lyrics Composer" },
   { id: "revision-history", label: "Revision History" },
   { id: "band-settings", label: "Band Settings" },
-  { id: "signing-back-in", label: "Signing Back In" },
 ];
 
 export default function GettingStartedPage() {
@@ -52,11 +52,31 @@ export default function GettingStartedPage() {
 
         {/* Sections */}
         <div className="flex flex-col gap-12">
+          {/* Creating an Account */}
+          <Section id="creating-an-account" title="Creating an Account">
+            <p>
+              The first step is to create a free BandBook account. Tap{" "}
+              <strong>Get Started</strong>{" "}on the home page and sign up with
+              your email and a password, or use Google or Facebook.
+            </p>
+            <p>
+              Your account is how you sign in across devices and manage all
+              your bands in one place.
+            </p>
+            <Tip>
+              Already had a band before accounts were introduced? Sign up with
+              the <strong>same email</strong>{" "}you used originally and your
+              existing bands will be linked to your new account automatically.
+              If you sign up with Google or Facebook, make sure the email on
+              that account matches the one you used before.
+            </Tip>
+          </Section>
+
           {/* Creating a Band */}
           <Section id="creating-a-band" title="Creating a Band">
             <p>
-              To get started, tap <strong>Create a Band</strong> on the home
-              page. You&apos;ll need four things:
+              Once you&apos;re signed in, tap <strong>Create a Band</strong>{" "}
+              on the home page. You&apos;ll need three things:
             </p>
             <ul className="list-disc list-inside space-y-1 text-sm text-muted">
               <li>
@@ -65,15 +85,11 @@ export default function GettingStartedPage() {
               </li>
               <li>
                 <strong className="text-foreground">Passcode</strong> — a shared
-                code (4–8 characters) that all members will use
+                code (4–8 characters) that your bandmates will use to join
               </li>
               <li>
                 <strong className="text-foreground">Nickname</strong> — how you
-                want to appear in the band
-              </li>
-              <li>
-                <strong className="text-foreground">Email</strong> — used to sign
-                back in if you lose your session
+                want to appear in this band
               </li>
             </ul>
             <Tip>
@@ -89,17 +105,20 @@ export default function GettingStartedPage() {
 
           {/* Joining a Band */}
           <Section id="joining-a-band" title="Joining a Band">
-            <p>There are two ways to join an existing band:</p>
+            <p>
+              To join a band, you&apos;ll need a BandBook account first. Once
+              signed in, there are two ways to join:
+            </p>
             <ul className="list-disc list-inside space-y-1 text-sm text-muted">
               <li>
                 <strong className="text-foreground">Via invite link</strong> —
-                your bandmate sends you a link and you just fill in the passcode,
-                a nickname, and your email
+                your bandmate sends you a link, and you enter the band passcode
+                and a nickname
               </li>
               <li>
                 <strong className="text-foreground">Manually</strong> — tap{" "}
-                <strong>Join a Band</strong> on the home page and enter the
-                invite code, passcode, nickname, and email
+                <strong>Join a Band</strong>{" "}on the home page and enter the
+                invite code, passcode, and your nickname
               </li>
             </ul>
             <p>
@@ -174,12 +193,12 @@ export default function GettingStartedPage() {
             </p>
             <ul className="list-disc list-inside space-y-1 text-sm text-muted">
               <li>
-                <strong className="text-foreground">Label</strong> your versions
+                <strong className="text-foreground">Label</strong>{" "}your versions
                 to tell them apart (e.g., &quot;Garage rehearsal 3/15&quot;,
                 &quot;Studio demo&quot;)
               </li>
               <li>
-                <strong className="text-foreground">Add notes</strong> to
+                <strong className="text-foreground">Add notes</strong>{" "}to
                 remember what&apos;s different about each take
               </li>
               <li>
@@ -271,33 +290,17 @@ export default function GettingStartedPage() {
               <li>
                 <strong className="text-foreground">Change the passcode</strong>{" "}
                 — existing members stay signed in, but new members will need the
-                updated passcode
-              </li>
-              <li>
-                <strong className="text-foreground">Update your recovery email</strong>
+                updated passcode to join
               </li>
               <li>
                 <strong className="text-foreground">See all members</strong>{" "}
                 — with nicknames, join dates, and last activity
               </li>
             </ul>
-          </Section>
-
-          {/* Signing Back In */}
-          <Section id="signing-back-in" title="Signing Back In">
-            <p>
-              If you switch devices or clear your browser data, you can get back
-              in by tapping <strong>Return to My Bands</strong> on the home page.
-            </p>
-            <ol className="list-decimal list-inside space-y-1 text-sm text-muted">
-              <li>Enter the email you used when you joined</li>
-              <li>Select which band you want to rejoin</li>
-              <li>Enter the band&apos;s passcode</li>
-            </ol>
-            <p>
-              That&apos;s it — you&apos;re back in with all your songs and
-              recordings right where you left them.
-            </p>
+            <Tip>
+              To manage your account (email, password, connected accounts), click
+              your profile icon in the top right corner.
+            </Tip>
           </Section>
         </div>
 
@@ -305,7 +308,7 @@ export default function GettingStartedPage() {
         <div className="mt-16 mb-8 rounded-xl bg-surface border border-border p-8 text-center">
           <h2 className="text-xl font-semibold mb-2">Ready to start?</h2>
           <p className="text-muted text-sm mb-6">
-            Create a band and invite your bandmates in under a minute.
+            Create a free account and start your band&apos;s songwriting workspace.
           </p>
           <Link
             href="/#get-started"

@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { getSessionCookies } from "@/lib/session";
+import { getBandCookie } from "@/lib/session";
 import type { Member, Band } from "@/lib/supabase/types";
 
 export async function GET() {
-  const { sessionToken, bandId } = await getSessionCookies();
+  const { userId } = await auth();
 
-  if (!sessionToken || !bandId) {
+  if (!userId) {
+    return NextResponse.json({ member: null, band: null });
+  }
+
+  const bandId = await getBandCookie();
+
+  if (!bandId) {
     return NextResponse.json({ member: null, band: null });
   }
 
@@ -15,12 +22,11 @@ export async function GET() {
   const { data: member } = await supabase
     .from("members")
     .select("*")
-    .eq("session_token", sessionToken)
+    .eq("clerk_user_id", userId)
     .eq("band_id", bandId)
     .single<Member>();
 
   if (!member) {
-    // Cookies exist but session is invalid/expired — return 401
     return NextResponse.json(
       { member: null, band: null, expired: true },
       { status: 401 }

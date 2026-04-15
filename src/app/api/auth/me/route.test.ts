@@ -8,13 +8,19 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 vi.mock("@/lib/session", () => ({
-  getSessionCookies: vi.fn(),
+  getBandCookie: vi.fn(),
+}));
+
+vi.mock("@clerk/nextjs/server", () => ({
+  auth: vi.fn(),
 }));
 
 import { GET } from "./route";
-import { getSessionCookies } from "@/lib/session";
+import { getBandCookie } from "@/lib/session";
+import { auth } from "@clerk/nextjs/server";
 
-const mockGetSession = vi.mocked(getSessionCookies);
+const mockGetBandCookie = vi.mocked(getBandCookie);
+const mockAuth = vi.mocked(auth);
 
 describe("GET /api/auth/me", () => {
   beforeEach(() => {
@@ -25,8 +31,17 @@ describe("GET /api/auth/me", () => {
     }
   });
 
-  it("returns null member/band when no session cookies", async () => {
-    mockGetSession.mockResolvedValue({ sessionToken: null, bandId: null });
+  it("returns null member/band when not authenticated", async () => {
+    mockAuth.mockResolvedValue({ userId: null } as never);
+
+    const response = await GET();
+    const data = await response.json();
+    expect(data).toEqual({ member: null, band: null });
+  });
+
+  it("returns null member/band when no band cookie", async () => {
+    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
+    mockGetBandCookie.mockResolvedValue(null);
 
     const response = await GET();
     const data = await response.json();
@@ -34,7 +49,8 @@ describe("GET /api/auth/me", () => {
   });
 
   it("returns 401 with expired flag when member not found", async () => {
-    mockGetSession.mockResolvedValue({ sessionToken: "tok", bandId: "b1" });
+    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
+    mockGetBandCookie.mockResolvedValue("b1");
     mockQuery.single.mockResolvedValueOnce({ data: null });
 
     const response = await GET();
@@ -44,8 +60,9 @@ describe("GET /api/auth/me", () => {
   });
 
   it("returns member and band on valid session", async () => {
-    mockGetSession.mockResolvedValue({ sessionToken: "tok", bandId: "b1" });
-    const member = { id: "m1", nickname: "Alex", session_token: "tok" };
+    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
+    mockGetBandCookie.mockResolvedValue("b1");
+    const member = { id: "m1", nickname: "Alex", clerk_user_id: "user_123" };
     const band = { id: "b1", name: "The Band", invite_token: "inv" };
 
     mockQuery.single
@@ -60,8 +77,9 @@ describe("GET /api/auth/me", () => {
   });
 
   it("updates last_active_at for the member", async () => {
-    mockGetSession.mockResolvedValue({ sessionToken: "tok", bandId: "b1" });
-    const member = { id: "m1", nickname: "Alex" };
+    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
+    mockGetBandCookie.mockResolvedValue("b1");
+    const member = { id: "m1", nickname: "Alex", clerk_user_id: "user_123" };
     const band = { id: "b1", name: "The Band", invite_token: "inv" };
 
     mockQuery.single

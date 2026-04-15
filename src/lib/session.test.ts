@@ -11,25 +11,18 @@ vi.mock("next/headers", () => ({
   cookies: vi.fn(() => Promise.resolve(mockCookieStore)),
 }));
 
-import { setSessionCookies, getSessionCookies, clearSessionCookies } from "./session";
+import { setBandCookie, getBandCookie, clearBandCookie } from "./session";
 
 describe("session", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe("setSessionCookies", () => {
-    it("sets bb_session and bb_band cookies", async () => {
-      await setSessionCookies("token-123", "band-456");
+  describe("setBandCookie", () => {
+    it("sets bb_band cookie", async () => {
+      await setBandCookie("band-456");
 
-      expect(mockCookieStore.set).toHaveBeenCalledTimes(2);
-      expect(mockCookieStore.set).toHaveBeenCalledWith("bb_session", "token-123", {
-        httpOnly: true,
-        secure: false,
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 365,
-      });
+      expect(mockCookieStore.set).toHaveBeenCalledTimes(1);
       expect(mockCookieStore.set).toHaveBeenCalledWith("bb_band", "band-456", {
         httpOnly: true,
         secure: false,
@@ -43,11 +36,11 @@ describe("session", () => {
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = "production";
 
-      await setSessionCookies("tok", "band");
+      await setBandCookie("band");
 
       expect(mockCookieStore.set).toHaveBeenCalledWith(
-        "bb_session",
-        "tok",
+        "bb_band",
+        "band",
         expect.objectContaining({ secure: true })
       );
 
@@ -55,31 +48,29 @@ describe("session", () => {
     });
   });
 
-  describe("getSessionCookies", () => {
-    it("returns session token and band ID when cookies exist", async () => {
+  describe("getBandCookie", () => {
+    it("returns band ID when cookie exists", async () => {
       mockCookieStore.get.mockImplementation((name: string) => {
-        if (name === "bb_session") return { value: "tok-abc" };
         if (name === "bb_band") return { value: "band-xyz" };
         return undefined;
       });
 
-      const result = await getSessionCookies();
-      expect(result).toEqual({ sessionToken: "tok-abc", bandId: "band-xyz" });
+      const result = await getBandCookie();
+      expect(result).toBe("band-xyz");
     });
 
-    it("returns nulls when cookies are missing", async () => {
+    it("returns null when cookie is missing", async () => {
       mockCookieStore.get.mockReturnValue(undefined);
 
-      const result = await getSessionCookies();
-      expect(result).toEqual({ sessionToken: null, bandId: null });
+      const result = await getBandCookie();
+      expect(result).toBeNull();
     });
   });
 
-  describe("clearSessionCookies", () => {
-    it("deletes both cookies", async () => {
-      await clearSessionCookies();
+  describe("clearBandCookie", () => {
+    it("deletes bb_band cookie", async () => {
+      await clearBandCookie();
 
-      expect(mockCookieStore.delete).toHaveBeenCalledWith("bb_session");
       expect(mockCookieStore.delete).toHaveBeenCalledWith("bb_band");
     });
   });

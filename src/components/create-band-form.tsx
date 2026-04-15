@@ -8,7 +8,6 @@ export function CreateBandForm({ onBack }: { onBack: () => void }) {
   const [bandName, setBandName] = useState("");
   const [passcode, setPasscode] = useState("");
   const [nickname, setNickname] = useState("");
-  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +19,7 @@ export function CreateBandForm({ onBack }: { onBack: () => void }) {
     const res = await fetch("/api/bands/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bandName, passcode, nickname, email }),
+      body: JSON.stringify({ bandName, passcode, nickname }),
     });
 
     const data = await res.json();
@@ -60,18 +59,9 @@ export function CreateBandForm({ onBack }: { onBack: () => void }) {
 
       <input
         type="text"
-        placeholder="Your nickname"
+        placeholder="Your nickname in this band"
         value={nickname}
         onChange={(e) => setNickname(e.target.value)}
-        required
-        className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
-      />
-
-      <input
-        type="email"
-        placeholder="Email (for session recovery)"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
         required
         className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40"
       />

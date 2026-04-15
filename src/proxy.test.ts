@@ -1,100 +1,90 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Manually track calls
-let nextCalled = false;
-let redirectUrl: string | null = null;
+// vi.hoisted runs at the same time as vi.mock (hoisted to top)
+const { container, mockProtect } = vi.hoisted(() => {
+  const container: {
+    handler: ((auth: unknown, request: unknown) => Promise<void>) | null;
+  } = { handler: null };
+  const mockProtect = vi.fn();
+  return { container, mockProtect };
+});
 
-vi.mock("next/server", () => ({
-  NextResponse: {
-    next: () => {
-      nextCalled = true;
-      return { type: "next" };
-    },
-    redirect: (url: URL) => {
-      redirectUrl = url.pathname;
-      return { type: "redirect", url };
-    },
-  },
+vi.mock("@clerk/nextjs/server", () => ({
+  clerkMiddleware: vi.fn((handler: unknown) => {
+    container.handler = handler as typeof container.handler;
+    return () => {};
+  }),
+  createRouteMatcher: vi.fn((routes: string[]) => {
+    return (request: { nextUrl: { pathname: string } }) => {
+      return routes.some((route) => {
+        const pattern = route.replace("(.*)", ".*");
+        return new RegExp(`^${pattern}$`).test(request.nextUrl.pathname);
+      });
+    };
+  }),
 }));
 
-import proxy from "./proxy";
-import type { NextRequest } from "next/server";
+// Import triggers module execution and registers the handler
+import "./proxy";
 
-function createRequest(pathname: string, cookies: Record<string, string> = {}): NextRequest {
+function createRequest(pathname: string) {
   return {
-    cookies: {
-      get: (name: string) => {
-        const value = cookies[name];
-        return value ? { value } : undefined;
-      },
-    },
-    nextUrl: {
-      pathname,
-      clone: () => {
-        const url = new URL(`http://localhost:3000${pathname}`);
-        return url;
-      },
-    },
-  } as unknown as NextRequest;
+    nextUrl: { pathname },
+  };
+}
+
+function createAuthFn() {
+  return {
+    protect: mockProtect,
+  };
 }
 
 describe("proxy", () => {
   beforeEach(() => {
-    nextCalled = false;
-    redirectUrl = null;
+    vi.clearAllMocks();
   });
 
-  it("lets API routes through without checking auth", () => {
-    proxy(createRequest("/api/songs"));
-    expect(nextCalled).toBe(true);
-    expect(redirectUrl).toBeNull();
+  it("registers a middleware handler", () => {
+    expect(container.handler).not.toBeNull();
   });
 
-  it("lets unauthenticated users access the landing page", () => {
-    proxy(createRequest("/"));
-    expect(nextCalled).toBe(true);
-    expect(redirectUrl).toBeNull();
+  it("does not protect public sign-in routes", async () => {
+    await container.handler!(createAuthFn(), createRequest("/sign-in"));
+    expect(mockProtect).not.toHaveBeenCalled();
   });
 
-  it("lets unauthenticated users access join pages", () => {
-    proxy(createRequest("/join/abc123"));
-    expect(nextCalled).toBe(true);
-    expect(redirectUrl).toBeNull();
+  it("does not protect public sign-up routes", async () => {
+    await container.handler!(createAuthFn(), createRequest("/sign-up"));
+    expect(mockProtect).not.toHaveBeenCalled();
   });
 
-  it("redirects unauthenticated users to landing from protected pages", () => {
-    proxy(createRequest("/songs"));
-    expect(redirectUrl).toBe("/");
+  it("does not protect getting-started page", async () => {
+    await container.handler!(createAuthFn(), createRequest("/getting-started"));
+    expect(mockProtect).not.toHaveBeenCalled();
   });
 
-  it("redirects unauthenticated users from settings to landing", () => {
-    proxy(createRequest("/settings"));
-    expect(redirectUrl).toBe("/");
+  it("protects /songs route", async () => {
+    await container.handler!(createAuthFn(), createRequest("/songs"));
+    expect(mockProtect).toHaveBeenCalled();
   });
 
-  it("redirects authenticated users from landing to /songs", () => {
-    proxy(createRequest("/", { bb_session: "tok", bb_band: "band" }));
-    expect(redirectUrl).toBe("/songs");
+  it("protects /settings route", async () => {
+    await container.handler!(createAuthFn(), createRequest("/settings"));
+    expect(mockProtect).toHaveBeenCalled();
   });
 
-  it("redirects authenticated users from /join to /songs", () => {
-    proxy(createRequest("/join/abc", { bb_session: "tok", bb_band: "band" }));
-    expect(redirectUrl).toBe("/songs");
+  it("protects /api/songs route", async () => {
+    await container.handler!(createAuthFn(), createRequest("/api/songs"));
+    expect(mockProtect).toHaveBeenCalled();
   });
 
-  it("lets authenticated users access protected pages", () => {
-    proxy(createRequest("/songs", { bb_session: "tok", bb_band: "band" }));
-    expect(nextCalled).toBe(true);
-    expect(redirectUrl).toBeNull();
+  it("does not protect root route (public landing page)", async () => {
+    await container.handler!(createAuthFn(), createRequest("/"));
+    expect(mockProtect).not.toHaveBeenCalled();
   });
 
-  it("redirects when only session cookie is present (missing band)", () => {
-    proxy(createRequest("/songs", { bb_session: "tok" }));
-    expect(redirectUrl).toBe("/");
-  });
-
-  it("redirects when only band cookie is present (missing session)", () => {
-    proxy(createRequest("/songs", { bb_band: "band" }));
-    expect(redirectUrl).toBe("/");
+  it("does not protect join routes", async () => {
+    await container.handler!(createAuthFn(), createRequest("/join/abc123"));
+    expect(mockProtect).not.toHaveBeenCalled();
   });
 });
