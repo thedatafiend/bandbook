@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
 interface BandInfo {
+  id: string;
   name: string;
   invite_token: string;
 }
@@ -141,7 +142,7 @@ export default function SettingsPage() {
         {/* Your Bands */}
         <YourBandsSection
           userBands={userBands}
-          currentBandName={band?.name ?? ""}
+          currentBandId={band?.id ?? ""}
         />
       </div>
     </main>
@@ -150,12 +151,11 @@ export default function SettingsPage() {
 
 function YourBandsSection({
   userBands,
-  currentBandName,
+  currentBandId,
 }: {
   userBands: UserBand[];
-  currentBandName: string;
+  currentBandId: string;
 }) {
-  const router = useRouter();
   const [switching, setSwitching] = useState<string | null>(null);
 
   async function handleSwitch(bandId: string) {
@@ -167,7 +167,8 @@ function YourBandsSection({
     });
 
     if (res.ok) {
-      router.push("/songs");
+      // Hard navigation to clear cached data for the old band
+      window.location.href = "/songs";
     }
     setSwitching(null);
   }
@@ -178,7 +179,7 @@ function YourBandsSection({
       {userBands.length > 0 && (
         <div className="flex flex-col gap-2 mb-4">
           {userBands.map((b) => {
-            const isCurrent = b.band_name === currentBandName;
+            const isCurrent = b.band_id === currentBandId;
             return (
               <div
                 key={b.member_id}
