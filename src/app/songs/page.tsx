@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { NewSongModal } from "@/components/new-song-modal";
+import { SongsSkeleton } from "@/components/skeletons/songs-skeleton";
 import { cacheGet, cacheSet, cacheInvalidate } from "@/lib/cache";
 
 interface MemberInfo {
@@ -162,6 +163,14 @@ export default function SongsPage() {
     });
   }
 
+  if (loading) {
+    return (
+      <main>
+        <SongsSkeleton />
+      </main>
+    );
+  }
+
   if (sessionExpired) {
     router.push("/sign-in");
     return null;
@@ -200,7 +209,7 @@ export default function SongsPage() {
         </button>
       </header>
 
-      {!loading && songs.length === 0 && (
+      {songs.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center text-center">
           <p className="text-muted mb-6">No songs yet. Start creating!</p>
           <button
@@ -212,7 +221,7 @@ export default function SongsPage() {
         </div>
       )}
 
-      {!loading && songs.length > 0 && (
+      {songs.length > 0 && (
         <>
           {/* Search */}
           <div className="relative mb-4">
@@ -236,7 +245,7 @@ export default function SongsPage() {
               placeholder="Search songs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg bg-surface border border-border pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-1 focus:ring-accent/40"
+              className="w-full rounded-lg glass pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-1 focus:ring-accent/40"
             />
           </div>
 
@@ -250,7 +259,7 @@ export default function SongsPage() {
                   className={`shrink-0 text-xs px-3 py-1.5 rounded-full transition ${
                     statusFilter === opt.value
                       ? "bg-accent text-white font-semibold"
-                      : "bg-surface text-muted border border-border hover:border-border-light"
+                      : "glass text-muted hover:border-white/[0.12]"
                   }`}
                 >
                   {opt.label}
@@ -281,7 +290,7 @@ export default function SongsPage() {
                 </svg>
               </button>
               {showSort && (
-                <div className="absolute right-0 top-10 z-10 bg-surface border border-border rounded-lg shadow-lg py-1 min-w-[150px]">
+                <div className="absolute right-0 top-10 z-10 glass rounded-lg shadow-lg py-1 min-w-[150px]">
                   {([
                     { value: "updated", label: "Last Updated" },
                     { value: "title", label: "Title A–Z" },
@@ -321,7 +330,7 @@ export default function SongsPage() {
                 <Link
                   key={song.id}
                   href={`/songs/${song.id}`}
-                  className="w-full text-left rounded-lg bg-surface border border-border px-4 py-3 hover:bg-surface-alt hover:border-border-light transition block"
+                  className="w-full text-left rounded-lg glass glass-hover px-4 py-3 transition block"
                 >
                   <div className="flex items-center justify-between mb-1">
                     <h3 className="text-foreground font-medium truncate mr-2">

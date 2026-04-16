@@ -305,7 +305,7 @@ export default function GettingStartedPage() {
         </div>
 
         {/* Bottom CTA */}
-        <div className="mt-16 mb-8 rounded-xl bg-surface border border-border p-8 text-center">
+        <div className="mt-16 mb-8 rounded-xl glass p-8 text-center">
           <h2 className="text-xl font-semibold mb-2">Ready to start?</h2>
           <p className="text-muted text-sm mb-6">
             Create a free account and start your band&apos;s songwriting workspace.
@@ -343,7 +343,7 @@ function Section({
 
 function Tip({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-lg bg-surface border border-border p-4 text-sm text-muted">
+    <div className="rounded-lg glass p-4 text-sm text-muted">
       <span className="font-medium text-foreground">Tip: </span>
       {children}
     </div>

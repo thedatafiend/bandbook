@@ -117,6 +117,48 @@ function HomeContent() {
         </Link>
       </section>
 
+      {/* Band Picker (shown when signed-in user has multiple bands) */}
+      {isSignedIn && userBands.length > 1 && (
+        <section className="w-full max-w-lg mb-16">
+          <div className="rounded-xl glass p-6 flex flex-col items-center">
+            <h2 className="text-xl font-semibold mb-1">Welcome Back</h2>
+            <p className="text-muted text-sm mb-5">
+              Pick up where you left off.
+            </p>
+            <div className="flex flex-col gap-3 w-full">
+              {userBands.map((b) => (
+                <button
+                  key={b.member_id}
+                  onClick={async () => {
+                    await fetch("/api/auth/switch-band", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ bandId: b.band_id }),
+                    });
+                    router.push("/songs");
+                  }}
+                  className="w-full text-left rounded-lg border border-border-light text-foreground font-semibold py-3 px-4 hover:bg-surface-alt transition flex items-center justify-between"
+                >
+                  <div>
+                    <span>{b.band_name}</span>
+                    <p className="text-muted-dim text-xs font-normal">as {b.nickname}</p>
+                  </div>
+                  <svg
+                    className="w-4 h-4 text-muted-dim"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* How It Works */}
       <section className="w-full max-w-lg mb-16">
         <h2 className="text-xl font-semibold text-center mb-8">How It Works</h2>
@@ -215,44 +257,13 @@ function HomeContent() {
         </div>
       </section>
 
-      {/* Band Picker (shown when user has multiple bands) */}
-      {userBands.length > 1 && (
-        <section className="w-full max-w-lg mb-16">
-          <div className="rounded-xl bg-surface border border-border p-6 flex flex-col items-center">
-            <h2 className="text-xl font-semibold mb-2">Welcome Back</h2>
-            <p className="text-muted text-sm mb-4 text-center">
-              Select a band to continue.
-            </p>
-            <div className="flex flex-col gap-2 w-full max-w-xs">
-              {userBands.map((b) => (
-                <button
-                  key={b.member_id}
-                  onClick={async () => {
-                    await fetch("/api/auth/switch-band", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ bandId: b.band_id }),
-                    });
-                    router.push("/songs");
-                  }}
-                  className="text-left rounded-lg border border-border bg-surface px-4 py-3 hover:bg-surface-alt transition"
-                >
-                  <p className="text-foreground font-medium">{b.band_name}</p>
-                  <p className="text-muted-dim text-xs">as {b.nickname}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* Action Section */}
       <section
         ref={actionRef}
         id="get-started"
         className="w-full max-w-lg mb-16"
       >
-        <div className="rounded-xl bg-surface border border-border p-6 flex flex-col items-center">
+        <div className="rounded-xl glass p-6 flex flex-col items-center">
           {!isSignedIn ? (
             <div className="flex flex-col items-center gap-4 w-full max-w-xs">
               <h2 className="text-xl font-semibold">Get Started</h2>
@@ -323,7 +334,7 @@ function StepCard({
 }) {
   return (
     <div className="flex flex-col items-center text-center gap-3 p-4">
-      <div className="flex items-center justify-center w-14 h-14 rounded-full bg-surface border border-border">
+      <div className="flex items-center justify-center w-14 h-14 rounded-full glass">
         {icon}
       </div>
       <div>
@@ -347,8 +358,8 @@ function FeatureCard({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg bg-surface border border-border p-4 flex gap-3">
-      <div className="flex-shrink-0 w-9 h-9 rounded-md bg-surface-alt flex items-center justify-center text-accent">
+    <div className="rounded-lg glass p-4 flex gap-3">
+      <div className="flex-shrink-0 w-9 h-9 rounded-md bg-white/[0.06] flex items-center justify-center text-accent">
         {icon}
       </div>
       <div>
