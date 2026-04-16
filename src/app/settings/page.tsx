@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { SettingsSkeleton } from "@/components/skeletons/settings-skeleton";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
 interface BandInfo {
@@ -89,8 +90,8 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <main className="flex flex-1 flex-col items-center justify-center">
-        <p className="text-muted">Loading...</p>
+      <main>
+        <SettingsSkeleton />
       </main>
     );
   }
@@ -185,8 +186,8 @@ function YourBandsSection({
                 key={b.member_id}
                 className={`flex items-center justify-between rounded-lg border px-4 py-3 ${
                   isCurrent
-                    ? "border-accent bg-surface-alt"
-                    : "border-border bg-surface"
+                    ? "border-accent glass"
+                    : "glass"
                 }`}
               >
                 <div>
@@ -329,7 +330,7 @@ function BandNameSection({
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between rounded-lg bg-surface border border-border px-4 py-3">
+        <div className="flex items-center justify-between rounded-lg glass px-4 py-3">
           <span className="text-foreground font-medium">{currentName}</span>
           <button
             onClick={() => setEditing(true)}
@@ -419,12 +420,12 @@ function InviteLinkSection({
       </p>
 
       <div className="flex items-center gap-2 mb-3">
-        <div className="flex-1 rounded-lg bg-surface border border-border px-4 py-3 text-sm text-muted truncate select-all">
+        <div className="flex-1 rounded-lg glass px-4 py-3 text-sm text-muted truncate select-all">
           {inviteUrl}
         </div>
         <button
           onClick={copyLink}
-          className="shrink-0 rounded-lg bg-surface border border-border px-3 py-3 text-sm text-muted hover:bg-surface-alt transition"
+          className="shrink-0 rounded-lg glass glass-hover px-3 py-3 text-sm text-muted transition"
           aria-label="Copy invite link"
         >
           {copied ? "Copied!" : "Copy"}
@@ -575,7 +576,7 @@ function MembersSection({ members }: { members: MemberInfo[] }) {
         {members.map((m) => (
           <div
             key={m.id}
-            className="flex items-center justify-between rounded-lg bg-surface border border-border px-4 py-3"
+            className="flex items-center justify-between rounded-lg glass px-4 py-3"
           >
             <div>
               <p className="text-foreground font-medium">{m.nickname}</p>

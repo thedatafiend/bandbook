@@ -174,7 +174,7 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
       }}
     >
       <div className="absolute inset-0 bg-black/60" />
-      <div className="relative bg-background border border-border rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto p-6">
+      <div className="relative glass rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold">
@@ -305,7 +305,7 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
         {/* Step: Upload destination — new song or existing */}
         {step === "upload-destination" && file && (
           <div className="flex flex-col gap-4">
-            <div className="rounded-lg bg-surface border border-border px-4 py-3">
+            <div className="rounded-lg glass px-4 py-3">
               <p className="text-sm text-muted">Selected file</p>
               <p className="text-foreground text-sm font-medium truncate">
                 {file.name}
@@ -399,7 +399,7 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
         {/* Step: Uploading — progress bar */}
         {step === "uploading" && (
           <div className="flex flex-col gap-4">
-            <div className="w-full bg-surface rounded-full h-3 overflow-hidden">
+            <div className="w-full bg-white/[0.06] rounded-full h-3 overflow-hidden">
               <div
                 className="bg-accent h-full rounded-full transition-all duration-300"
                 style={{ width: `${uploadProgress}%` }}

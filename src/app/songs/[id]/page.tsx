@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { SongDetailSkeleton } from "@/components/skeletons/song-detail-skeleton";
 
 interface VersionDetail {
   id: string;
@@ -99,8 +100,8 @@ export default function SongDetailPage() {
 
   if (loading) {
     return (
-      <main className="flex flex-1 flex-col items-center justify-center">
-        <p className="text-muted">Loading...</p>
+      <main>
+        <SongDetailSkeleton />
       </main>
     );
   }
@@ -179,7 +180,7 @@ export default function SongDetailPage() {
           onEnded={() => {}}
         />
       ) : (
-        <div className="rounded-lg bg-surface border border-border px-4 py-6 text-center mb-6">
+        <div className="rounded-lg glass px-4 py-6 text-center mb-6">
           <p className="text-muted text-sm mb-1">No recordings yet</p>
           <p className="text-muted-dim text-xs">
             Upload your first recording from the Versions tab
@@ -382,14 +383,14 @@ function AudioPlayer({
 
   if (!version || !version.signed_audio_url) {
     return (
-      <div className="rounded-lg bg-surface border border-border px-4 py-5 text-center mb-6">
+      <div className="rounded-lg glass px-4 py-5 text-center mb-6">
         <p className="text-muted-dim text-sm">Audio unavailable</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg bg-surface border border-border px-4 py-4 mb-6">
+    <div className="rounded-lg glass px-4 py-4 mb-6">
       <audio
         ref={audioRef}
         src={version.signed_audio_url}
@@ -503,7 +504,7 @@ function VersionsSection({
       )}
 
       {versions.length === 0 && !showUpload && (
-        <div className="rounded-lg bg-surface border border-border px-4 py-6 text-center">
+        <div className="rounded-lg glass px-4 py-6 text-center">
           <p className="text-muted text-sm mb-3">No recordings yet</p>
           <button
             onClick={() => setShowUpload(true)}
@@ -584,8 +585,8 @@ function VersionCard({
     <div
       className={`rounded-lg border px-4 py-3 ${
         version.is_current
-          ? "bg-surface border-accent/20"
-          : "bg-surface/50 border-border"
+          ? "glass border-accent/20"
+          : "glass"
       }`}
     >
       <div className="flex items-center gap-3">
@@ -1127,7 +1128,7 @@ function LyricsComposer({
 
       {/* Sections */}
       {sections.length === 0 ? (
-        <div className="rounded-lg bg-surface border border-border px-4 py-8 text-center mb-3">
+        <div className="rounded-lg glass px-4 py-8 text-center mb-3">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="32"
@@ -1159,10 +1160,10 @@ function LyricsComposer({
               }}
               className={`rounded-lg border px-4 py-3 transition-colors ${
                 dragOverIdx === idx && dragIdx !== idx
-                  ? "border-accent/40 bg-border/50"
+                  ? "border-accent/40 bg-white/[0.08]"
                   : dragIdx === idx
-                  ? "border-accent/30 bg-border/30"
-                  : "border-border bg-surface/50"
+                  ? "border-accent/30 bg-white/[0.04]"
+                  : "glass"
               } ${dragIdx === idx ? "opacity-50" : ""}`}
             >
               <div className="flex items-center gap-2 mb-2">
@@ -1237,14 +1238,14 @@ function LyricsComposer({
                     </svg>
                   </button>
                   {menuOpenId === section.clientId && (
-                    <div className="absolute right-0 top-8 z-10 bg-surface border border-border-light rounded-lg shadow-lg py-1 min-w-[140px]">
+                    <div className="absolute right-0 top-8 z-10 glass rounded-lg shadow-lg py-1 min-w-[140px]">
                       {idx > 0 && (
                         <button
                           onClick={() => {
                             moveSection(idx, idx - 1);
                             setMenuOpenId(null);
                           }}
-                          className="w-full text-left px-3 py-1.5 text-sm text-foreground/80 hover:bg-surface-alt transition"
+                          className="w-full text-left px-3 py-1.5 text-sm text-foreground/80 hover:bg-white/[0.06] transition"
                         >
                           Move Up
                         </button>
@@ -1255,14 +1256,14 @@ function LyricsComposer({
                             moveSection(idx, idx + 1);
                             setMenuOpenId(null);
                           }}
-                          className="w-full text-left px-3 py-1.5 text-sm text-foreground/80 hover:bg-surface-alt transition"
+                          className="w-full text-left px-3 py-1.5 text-sm text-foreground/80 hover:bg-white/[0.06] transition"
                         >
                           Move Down
                         </button>
                       )}
                       <button
                         onClick={() => duplicateSection(section.clientId)}
-                        className="w-full text-left px-3 py-1.5 text-sm text-foreground/80 hover:bg-surface-alt transition"
+                        className="w-full text-left px-3 py-1.5 text-sm text-foreground/80 hover:bg-white/[0.06] transition"
                       >
                         Duplicate
                       </button>
@@ -1271,13 +1272,13 @@ function LyricsComposer({
                           setTypeChangeId(section.clientId);
                           setMenuOpenId(null);
                         }}
-                        className="w-full text-left px-3 py-1.5 text-sm text-foreground/80 hover:bg-surface-alt transition"
+                        className="w-full text-left px-3 py-1.5 text-sm text-foreground/80 hover:bg-white/[0.06] transition"
                       >
                         Change Type
                       </button>
                       <button
                         onClick={() => deleteSection(section.clientId)}
-                        className="w-full text-left px-3 py-1.5 text-sm text-red-400 hover:bg-surface-alt transition"
+                        className="w-full text-left px-3 py-1.5 text-sm text-red-400 hover:bg-white/[0.06] transition"
                       >
                         Delete
                       </button>
@@ -1301,7 +1302,7 @@ function LyricsComposer({
 
       {/* Add Section */}
       {showTypePicker ? (
-        <div className="rounded-lg bg-surface border border-border px-4 py-3">
+        <div className="rounded-lg glass px-4 py-3">
           <p className="text-muted text-xs mb-2">Choose section type:</p>
           <div className="flex flex-wrap gap-2">
             {SECTION_TYPES.map((t) => (
@@ -1415,7 +1416,7 @@ function RevisionHistory({
         </p>
         <div className="flex flex-col gap-3">
           {(snap.sections ?? []).map((s, i) => (
-            <div key={i} className="rounded-lg bg-surface/50 border border-border px-4 py-3">
+            <div key={i} className="rounded-lg glass px-4 py-3">
               <span
                 className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mb-2 ${
                   SECTION_TYPE_COLORS[s.section_type] ?? SECTION_TYPE_COLORS.custom
@@ -1448,7 +1449,7 @@ function RevisionHistory({
       {loading ? (
         <p className="text-muted-dim text-sm text-center py-8">Loading...</p>
       ) : revisions.length === 0 ? (
-        <div className="rounded-lg bg-surface border border-border px-4 py-8 text-center">
+        <div className="rounded-lg glass px-4 py-8 text-center">
           <p className="text-muted text-sm">No revisions yet</p>
           <p className="text-muted-dim text-xs mt-1">
             Revisions are created automatically when you save lyrics
@@ -1460,7 +1461,7 @@ function RevisionHistory({
             <button
               key={rev.id}
               onClick={() => setPreviewRevision(rev)}
-              className="w-full text-left rounded-lg bg-surface/50 border border-border px-4 py-3 hover:border-border-light transition"
+              className="w-full text-left rounded-lg glass glass-hover px-4 py-3 transition"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -1556,7 +1557,7 @@ function UploadWidget({
   }
 
   return (
-    <div className="rounded-lg bg-surface border border-border px-4 py-4 mb-3">
+    <div className="rounded-lg glass px-4 py-4 mb-3">
       {!uploading ? (
         <>
           {!file ? (
