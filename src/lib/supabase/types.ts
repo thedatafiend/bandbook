@@ -35,6 +35,7 @@ export interface Song {
   band_id: string;
   title: string;
   status: SongStatus;
+  bpm: number | null;
   current_version_id: string | null;
   created_at: string;
   updated_at: string;

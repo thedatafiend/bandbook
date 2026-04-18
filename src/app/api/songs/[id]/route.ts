@@ -27,7 +27,11 @@ export async function PATCH(
   }
 
   const body = await request.json();
-  const { title } = body as { title?: string };
+  const { title, bpm, status } = body as {
+    title?: string;
+    bpm?: number | null;
+    status?: string;
+  };
 
   const updates: Record<string, unknown> = {};
   if (title !== undefined) {
@@ -36,6 +40,33 @@ export async function PATCH(
       return NextResponse.json({ error: "Title cannot be empty" }, { status: 400 });
     }
     updates.title = trimmed;
+  }
+  if (bpm !== undefined) {
+    if (bpm === null) {
+      updates.bpm = null;
+    } else if (
+      typeof bpm !== "number" ||
+      !Number.isFinite(bpm) ||
+      !Number.isInteger(bpm) ||
+      bpm < 1 ||
+      bpm > 999
+    ) {
+      return NextResponse.json(
+        { error: "BPM must be an integer between 1 and 999" },
+        { status: 400 }
+      );
+    } else {
+      updates.bpm = bpm;
+    }
+  }
+  if (status !== undefined) {
+    if (status !== "draft" && status !== "in-progress" && status !== "finished") {
+      return NextResponse.json(
+        { error: "Status must be one of: draft, in-progress, finished" },
+        { status: 400 }
+      );
+    }
+    updates.status = status;
   }
 
   if (Object.keys(updates).length === 0) {

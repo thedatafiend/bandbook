@@ -208,4 +208,111 @@ describe("PATCH /api/songs/[id]", () => {
     const res = await PATCH(makeReq({ title: "Fail" }), makeParams("s1"));
     expect(res.status).toBe(500);
   });
+
+  it("updates bpm successfully", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+
+    const res = await PATCH(makeReq({ bpm: 120 }), makeParams("s1"));
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.success).toBe(true);
+  });
+
+  it("clears bpm when null is provided", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+
+    const res = await PATCH(makeReq({ bpm: null }), makeParams("s1"));
+    expect(res.status).toBe(200);
+  });
+
+  it("returns 400 when bpm is not an integer", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+
+    const res = await PATCH(makeReq({ bpm: 120.5 }), makeParams("s1"));
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when bpm is below range", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+
+    const res = await PATCH(makeReq({ bpm: 0 }), makeParams("s1"));
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when bpm is above range", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+
+    const res = await PATCH(makeReq({ bpm: 1000 }), makeParams("s1"));
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when bpm is not a number", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+
+    const res = await PATCH(makeReq({ bpm: "120" }), makeParams("s1"));
+    expect(res.status).toBe(400);
+  });
+
+  it("updates both title and bpm together", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+
+    const res = await PATCH(
+      makeReq({ title: "New Title", bpm: 140 }),
+      makeParams("s1")
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it.each(["draft", "in-progress", "finished"])(
+    "updates status to %s",
+    async (status) => {
+      mockGetAuth.mockResolvedValue({
+        member: { id: "m1" } as never,
+        band: { id: "b1" } as never,
+      });
+      singleResults = [{ data: { id: "s1" } }];
+
+      const res = await PATCH(makeReq({ status }), makeParams("s1"));
+      expect(res.status).toBe(200);
+    }
+  );
+
+  it("returns 400 when status is invalid", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+
+    const res = await PATCH(makeReq({ status: "archived" }), makeParams("s1"));
+    expect(res.status).toBe(400);
+  });
 });
