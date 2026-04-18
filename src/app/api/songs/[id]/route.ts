@@ -27,7 +27,11 @@ export async function PATCH(
   }
 
   const body = await request.json();
-  const { title, bpm } = body as { title?: string; bpm?: number | null };
+  const { title, bpm, status } = body as {
+    title?: string;
+    bpm?: number | null;
+    status?: string;
+  };
 
   const updates: Record<string, unknown> = {};
   if (title !== undefined) {
@@ -54,6 +58,15 @@ export async function PATCH(
     } else {
       updates.bpm = bpm;
     }
+  }
+  if (status !== undefined) {
+    if (status !== "draft" && status !== "in-progress" && status !== "finished") {
+      return NextResponse.json(
+        { error: "Status must be one of: draft, in-progress, finished" },
+        { status: 400 }
+      );
+    }
+    updates.status = status;
   }
 
   if (Object.keys(updates).length === 0) {

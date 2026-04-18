@@ -46,6 +46,12 @@ const STATUS_LABELS: Record<string, string> = {
   finished: "Finished",
 };
 
+const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "draft", label: "Draft" },
+  { value: "in-progress", label: "In Progress" },
+  { value: "finished", label: "Finished" },
+];
+
 const SECTION_TYPE_COLORS: Record<string, string> = {
   verse: "bg-blue-500/20 text-blue-300",
   chorus: "bg-fuchsia-500/20 text-fuchsia-300",
@@ -169,7 +175,20 @@ export default function SongDetailPage() {
             }}
           />
           <div className="flex items-center gap-2 text-muted-dim text-sm">
-            <span>{STATUS_LABELS[song.status] ?? song.status}</span>
+            <EditableStatus
+              value={song.status}
+              onSave={async (newStatus) => {
+                const res = await fetch(`/api/songs/${song.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ status: newStatus }),
+                });
+                if (res.ok) {
+                  setSong((s) => s ? { ...s, status: newStatus } : s);
+                }
+                return res.ok;
+              }}
+            />
             <span aria-hidden="true">·</span>
             <EditableBpm
               value={song.bpm}
@@ -338,6 +357,97 @@ function EditableTitle({
         <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
       </svg>
     </button>
+  );
+}
+
+/* ─── Editable Status ─── */
+
+function EditableStatus({
+  value,
+  onSave,
+}: {
+  value: string;
+  onSave: (newValue: string) => Promise<boolean>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  async function handleSelect(next: string) {
+    if (next === value) {
+      setOpen(false);
+      return;
+    }
+    setSaving(true);
+    const ok = await onSave(next);
+    setSaving(false);
+    if (ok) setOpen(false);
+  }
+
+  return (
+    <div ref={containerRef} className="relative inline-block">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        disabled={saving}
+        className="group inline-flex items-center gap-1 hover:text-foreground/80 transition disabled:opacity-50"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        title="Click to change status"
+      >
+        <span>{STATUS_LABELS[value] ?? value}</span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="shrink-0 opacity-60 group-hover:opacity-100 transition"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          role="listbox"
+          className="absolute left-0 top-full mt-1 z-10 glass rounded-lg shadow-lg py-1 min-w-[140px]"
+        >
+          {STATUS_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              role="option"
+              aria-selected={opt.value === value}
+              onClick={() => handleSelect(opt.value)}
+              disabled={saving}
+              className={`w-full text-left px-3 py-1.5 text-sm transition hover:bg-white/[0.06] ${
+                opt.value === value
+                  ? "text-foreground"
+                  : "text-foreground/80"
+              }`}
+            >
+              {opt.label}
+              {opt.value === value && (
+                <span className="ml-2 text-accent" aria-hidden="true">✓</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

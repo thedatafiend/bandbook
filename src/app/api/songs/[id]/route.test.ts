@@ -290,4 +290,29 @@ describe("PATCH /api/songs/[id]", () => {
     );
     expect(res.status).toBe(200);
   });
+
+  it.each(["draft", "in-progress", "finished"])(
+    "updates status to %s",
+    async (status) => {
+      mockGetAuth.mockResolvedValue({
+        member: { id: "m1" } as never,
+        band: { id: "b1" } as never,
+      });
+      singleResults = [{ data: { id: "s1" } }];
+
+      const res = await PATCH(makeReq({ status }), makeParams("s1"));
+      expect(res.status).toBe(200);
+    }
+  );
+
+  it("returns 400 when status is invalid", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+
+    const res = await PATCH(makeReq({ status: "archived" }), makeParams("s1"));
+    expect(res.status).toBe(400);
+  });
 });
