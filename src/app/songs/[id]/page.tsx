@@ -1758,45 +1758,75 @@ function UploadWidget({
     setError("");
   }
 
-  function startUpload() {
+  async function startUpload() {
     if (!file) return;
     setUploading(true);
     setProgress(0);
     setError("");
 
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", `/api/songs/${songId}/versions`);
-
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        setProgress(Math.round((e.loaded / e.total) * 100));
+    try {
+      // 1. Ask the server for a signed upload URL. Sending the file through
+      //    our API route would hit Vercel's ~4.5MB function payload limit
+      //    (FUNCTION_PAYLOAD_TOO_LARGE), which is exactly the bug this
+      //    refactor fixes. The file goes browser → Supabase Storage directly.
+      const urlRes = await fetch(`/api/songs/${songId}/versions/upload-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: file.name }),
+      });
+      if (!urlRes.ok) {
+        throw new Error(await readError(urlRes, "Failed to start upload"));
       }
-    };
+      const { signedUrl, path } = (await urlRes.json()) as {
+        signedUrl: string;
+        token: string;
+        path: string;
+      };
 
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        onDone();
-      } else {
-        let msg = "Upload failed";
-        try {
-          msg = JSON.parse(xhr.responseText).error ?? msg;
-        } catch {
-          // ignore
-        }
-        setError(msg);
-        setUploading(false);
+      // 2. PUT directly to Supabase Storage's signed URL. Use XHR so we can
+      //    show upload progress (fetch can't observe upload progress yet).
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", signedUrl);
+        xhr.setRequestHeader("Content-Type", file.type || "audio/mpeg");
+        xhr.setRequestHeader("x-upsert", "false");
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            const snippet = xhr.responseText?.slice(0, 200).trim();
+            reject(
+              new Error(
+                `Storage upload failed (HTTP ${xhr.status})${snippet ? `: ${snippet}` : ""}`
+              )
+            );
+          }
+        };
+        xhr.onerror = () =>
+          reject(new Error("Storage upload failed. Check your connection."));
+        xhr.send(file);
+      });
+
+      // 3. Register the version row. Small JSON body, fits well under the
+      //    Vercel function limit.
+      const finRes = await fetch(`/api/songs/${songId}/versions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
+      });
+      if (!finRes.ok) {
+        throw new Error(await readError(finRes, "Failed to register version"));
       }
-    };
-
-    xhr.onerror = () => {
-      setError("Upload failed. Check your connection.");
+      onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
       setUploading(false);
-    };
-
-    xhr.send(formData);
+    }
   }
 
   return (
@@ -1868,6 +1898,20 @@ function UploadWidget({
 }
 
 /* ─── Helpers ─── */
+
+async function readError(res: Response, fallback: string): Promise<string> {
+  // Surface the actual server error when the body is JSON; otherwise include
+  // the HTTP status and a snippet so we don't collapse every failure into the
+  // same generic message.
+  try {
+    const data = await res.clone().json();
+    if (data?.error) return String(data.error);
+  } catch {
+    // not JSON
+  }
+  const text = (await res.text().catch(() => "")).slice(0, 200).trim();
+  return `${fallback} (HTTP ${res.status})${text ? `: ${text}` : ""}`;
+}
 
 function formatTime(seconds: number): string {
   if (!seconds || !isFinite(seconds)) return "0:00";

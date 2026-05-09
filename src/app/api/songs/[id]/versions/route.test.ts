@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 let singleCallCount = 0;
 let singleResults: Array<{ data: unknown; error?: unknown }> = [];
-let mockUploadFn = vi.fn(() => Promise.resolve({ error: null }));
 let insertSelectSingleResult: { data: unknown; error?: unknown } | null = null;
 
 const mockQuery = {
@@ -14,6 +13,7 @@ const mockQuery = {
   order: vi.fn(),
   limit: vi.fn(),
   single: vi.fn(),
+  maybeSingle: vi.fn(),
   in: vi.fn(),
 };
 
@@ -22,11 +22,13 @@ function resetChain() {
   for (const key of Object.keys(mockQuery)) {
     (mockQuery as Record<string, ReturnType<typeof vi.fn>>)[key].mockReturnValue(mockQuery);
   }
-  mockQuery.single.mockImplementation(() => {
+  const consumeNext = () => {
     const result = singleResults[singleCallCount] ?? { data: null };
     singleCallCount++;
     return Promise.resolve(result);
-  });
+  };
+  mockQuery.single.mockImplementation(consumeNext);
+  mockQuery.maybeSingle.mockImplementation(consumeNext);
   mockQuery.insert.mockImplementation(() => ({
     select: () => ({
       single: () => {
@@ -45,7 +47,7 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(() =>
     Promise.resolve({
       from: () => mockQuery,
-      storage: { from: () => ({ upload: (...args: unknown[]) => mockUploadFn(...args), createSignedUrl: vi.fn() }) },
+      storage: { from: () => ({ createSignedUrl: vi.fn() }) },
     })
   ),
 }));
@@ -63,21 +65,12 @@ function makeParams(id: string) {
   return { params: Promise.resolve({ id }) };
 }
 
-function makeRequestWithFormData(fields: Record<string, unknown>) {
-  // Create a request with a mocked formData() to avoid issues with File size preservation
-  const file = fields.file as File | undefined;
-  const req = new Request("http://localhost", { method: "POST" });
-
-  // Override formData to return controlled results
-  const mockFormData = {
-    get: (name: string) => {
-      if (name === "file") return file ?? null;
-      return (fields[name] as string) ?? null;
-    },
-  };
-  vi.spyOn(req, "formData").mockResolvedValue(mockFormData as unknown as FormData);
-
-  return req;
+function makeJsonRequest(body: unknown) {
+  return new Request("http://localhost", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 describe("POST /api/songs/[id]/versions", () => {
@@ -85,13 +78,12 @@ describe("POST /api/songs/[id]/versions", () => {
     vi.clearAllMocks();
     singleResults = [];
     insertSelectSingleResult = null;
-    mockUploadFn = vi.fn(() => Promise.resolve({ error: null }));
     resetChain();
   });
 
   it("returns 401 when not authenticated", async () => {
     mockGetAuth.mockResolvedValue(null);
-    const req = makeRequestWithFormData({ file: new File(["audio"], "test.mp3") });
+    const req = makeJsonRequest({ path: "b1/s1/x.mp3" });
     const res = await POST(req, makeParams("s1"));
     expect(res.status).toBe(401);
   });
@@ -103,62 +95,62 @@ describe("POST /api/songs/[id]/versions", () => {
     });
     singleResults = [{ data: null, error: new Error("not found") }];
 
-    const req = makeRequestWithFormData({ file: new File(["audio"], "test.mp3") });
+    const req = makeJsonRequest({ path: "b1/s1/x.mp3" });
     const res = await POST(req, makeParams("s1"));
     expect(res.status).toBe(404);
   });
 
-  it("returns 400 when no file provided", async () => {
+  it("returns 400 when path is missing", async () => {
     mockGetAuth.mockResolvedValue({
       member: { id: "m1" } as never,
       band: { id: "b1" } as never,
     });
     singleResults = [{ data: { id: "s1", band_id: "b1" } }];
 
-    const req = makeRequestWithFormData({});
-    const res = await POST(req, makeParams("s1"));
-    expect(res.status).toBe(400);
-  });
-
-  it("returns 400 when file is too large", async () => {
-    mockGetAuth.mockResolvedValue({
-      member: { id: "m1" } as never,
-      band: { id: "b1" } as never,
-    });
-    singleResults = [{ data: { id: "s1", band_id: "b1" } }];
-
-    const bigFile = new File(["x"], "big.mp3");
-    Object.defineProperty(bigFile, "size", { value: 600 * 1024 * 1024 });
-    const req = makeRequestWithFormData({ file: bigFile });
+    const req = makeJsonRequest({});
     const res = await POST(req, makeParams("s1"));
     expect(res.status).toBe(400);
     const data = await res.json();
-    expect(data.error).toContain("500 MB");
+    expect(data.error).toMatch(/path/i);
   });
 
-  it("uploads first version successfully", async () => {
+  it("returns 400 when path is not under the band+song prefix", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1", band_id: "b1" } }];
+
+    // Path scoped to a different band — caller must not be able to register
+    // someone else's audio object.
+    const req = makeJsonRequest({ path: "other-band/s1/x.mp3" });
+    const res = await POST(req, makeParams("s1"));
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toMatch(/invalid/i);
+  });
+
+  it("registers the first version successfully", async () => {
     mockGetAuth.mockResolvedValue({
       member: { id: "m1" } as never,
       band: { id: "b1" } as never,
     });
     const version = { id: "v1", version_number: 1 };
     singleResults = [
-      { data: { id: "s1", band_id: "b1" } },
-      { data: null },
+      { data: { id: "s1", band_id: "b1" } }, // song lookup (single)
+      { data: null }, // maybeSingle for version_number — empty (first)
     ];
     insertSelectSingleResult = { data: version, error: null };
 
-    const file = new File(["audio data"], "test.mp3", { type: "audio/mpeg" });
-    const req = makeRequestWithFormData({ file, label: "Demo" });
+    const req = makeJsonRequest({ path: "b1/s1/uuid.mp3", label: "Demo" });
     const res = await POST(req, makeParams("s1"));
     const data = await res.json();
 
     expect(res.status).toBe(200);
     expect(data.version).toEqual(version);
-    expect(mockUploadFn).toHaveBeenCalled();
   });
 
-  it("returns 500 when upload fails", async () => {
+  it("returns 500 with the underlying message when version insert fails", async () => {
     mockGetAuth.mockResolvedValue({
       member: { id: "m1" } as never,
       band: { id: "b1" } as never,
@@ -167,11 +159,12 @@ describe("POST /api/songs/[id]/versions", () => {
       { data: { id: "s1", band_id: "b1" } },
       { data: null },
     ];
-    mockUploadFn = vi.fn(() => Promise.resolve({ error: { message: "storage full" } }));
+    insertSelectSingleResult = { data: null, error: { message: "rls violation" } };
 
-    const file = new File(["audio"], "test.mp3");
-    const req = makeRequestWithFormData({ file });
+    const req = makeJsonRequest({ path: "b1/s1/uuid.mp3" });
     const res = await POST(req, makeParams("s1"));
     expect(res.status).toBe(500);
+    const data = await res.json();
+    expect(data.error).toContain("rls violation");
   });
 });
