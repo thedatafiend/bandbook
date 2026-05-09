@@ -1780,11 +1780,16 @@ function UploadWidget({
       if (xhr.status >= 200 && xhr.status < 300) {
         onDone();
       } else {
-        let msg = "Upload failed";
+        // Surface the HTTP status so non-JSON responses (HTML error pages from
+        // a thrown middleware, proxy errors) don't collapse into one generic
+        // message — that's how a real bug becomes invisible.
+        let msg = `Upload failed (HTTP ${xhr.status})`;
         try {
-          msg = JSON.parse(xhr.responseText).error ?? msg;
+          const parsed = JSON.parse(xhr.responseText);
+          if (parsed?.error) msg = parsed.error;
         } catch {
-          // ignore
+          const snippet = xhr.responseText?.slice(0, 200).trim();
+          if (snippet) msg = `${msg}: ${snippet}`;
         }
         setError(msg);
         setUploading(false);

@@ -14,6 +14,7 @@ const mockQuery = {
   order: vi.fn(),
   limit: vi.fn(),
   single: vi.fn(),
+  maybeSingle: vi.fn(),
   in: vi.fn(),
 };
 
@@ -22,11 +23,13 @@ function resetChain() {
   for (const key of Object.keys(mockQuery)) {
     (mockQuery as Record<string, ReturnType<typeof vi.fn>>)[key].mockReturnValue(mockQuery);
   }
-  mockQuery.single.mockImplementation(() => {
+  const consumeNext = () => {
     const result = singleResults[singleCallCount] ?? { data: null };
     singleCallCount++;
     return Promise.resolve(result);
-  });
+  };
+  mockQuery.single.mockImplementation(consumeNext);
+  mockQuery.maybeSingle.mockImplementation(consumeNext);
   mockQuery.insert.mockImplementation(() => ({
     select: () => ({
       single: () => {
