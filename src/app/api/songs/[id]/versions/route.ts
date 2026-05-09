@@ -3,6 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth";
 import type { Version } from "@/lib/supabase/types";
 
+// Registers an already-uploaded audio file as a new version. The file itself
+// is uploaded directly from the browser to Supabase Storage via a signed URL
+// (see /upload-url), so this endpoint only handles a small JSON body and
+// avoids Vercel's ~4.5MB function payload limit.
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -16,7 +20,6 @@ export async function POST(
     const { id: songId } = await params;
     const supabase = await createClient();
 
-    // Verify song belongs to band
     const { data: song, error: songError } = await supabase
       .from("songs")
       .select("id, band_id")
@@ -28,25 +31,27 @@ export async function POST(
       return NextResponse.json({ error: "Song not found" }, { status: 404 });
     }
 
-    // Parse multipart form data
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    const label = (formData.get("label") as string) || null;
-    const notes = (formData.get("notes") as string) || null;
+    const body = (await request.json().catch(() => null)) as {
+      path?: unknown;
+      label?: unknown;
+      notes?: unknown;
+    } | null;
 
-    if (!file) {
-      return NextResponse.json({ error: "Audio file is required" }, { status: 400 });
+    const path = typeof body?.path === "string" ? body.path : "";
+    const label = typeof body?.label === "string" ? body.label : null;
+    const notes = typeof body?.notes === "string" ? body.notes : null;
+
+    if (!path) {
+      return NextResponse.json({ error: "Storage path is required" }, { status: 400 });
     }
 
-    // Validate file size (500 MB max)
-    const MAX_SIZE = 500 * 1024 * 1024;
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: "File too large (max 500 MB)" }, { status: 400 });
+    // Reject paths that weren't issued for this band+song. Without this a
+    // member could register someone else's audio object as one of their songs.
+    const expectedPrefix = `${auth.band.id}/${songId}/`;
+    if (!path.startsWith(expectedPrefix)) {
+      return NextResponse.json({ error: "Invalid storage path" }, { status: 400 });
     }
 
-    // Get next version number. Use maybeSingle() because zero rows is the
-    // expected case for the first upload — single() returns a PGRST116 error
-    // that we'd have to ignore.
     const { data: maxVersionRow } = await supabase
       .from("versions")
       .select("version_number")
@@ -58,27 +63,6 @@ export async function POST(
     const nextVersionNumber = maxVersionRow ? maxVersionRow.version_number + 1 : 1;
     const isFirst = nextVersionNumber === 1;
 
-    // Upload to Supabase Storage
-    const ext = file.name.split(".").pop() || "mp3";
-    const storagePath = `${auth.band.id}/${songId}/${nextVersionNumber}-${Date.now()}.${ext}`;
-
-    const fileBuffer = await file.arrayBuffer();
-    const { error: uploadError } = await supabase.storage
-      .from("audio")
-      .upload(storagePath, fileBuffer, {
-        contentType: file.type || "audio/mpeg",
-        upsert: false,
-      });
-
-    if (uploadError) {
-      console.error("Storage upload error:", uploadError);
-      return NextResponse.json(
-        { error: `Failed to upload audio file: ${uploadError.message}` },
-        { status: 500 }
-      );
-    }
-
-    // If not the first version, unmark all existing versions as current
     if (!isFirst) {
       await supabase
         .from("versions")
@@ -86,14 +70,13 @@ export async function POST(
         .eq("song_id", songId);
     }
 
-    // Create version record
     const { data: version, error: versionError } = await supabase
       .from("versions")
       .insert({
         song_id: songId,
         version_number: nextVersionNumber,
         label,
-        audio_url: storagePath,
+        audio_url: path,
         notes,
         is_current: true,
         created_by_member_id: auth.member.id,
@@ -109,7 +92,6 @@ export async function POST(
       );
     }
 
-    // Update song's current_version_id
     await supabase
       .from("songs")
       .update({
@@ -120,14 +102,8 @@ export async function POST(
 
     return NextResponse.json({ version });
   } catch (err) {
-    // Without this catch, an uncaught throw produces a 500 with an HTML body,
-    // which the client can't parse — it shows a generic "Upload failed". Keep
-    // the JSON shape so the UI can surface the real error.
     console.error("Unhandled error in POST /api/songs/[id]/versions:", err);
     const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json(
-      { error: `Upload failed: ${message}` },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: `Upload failed: ${message}` }, { status: 500 });
   }
 }
