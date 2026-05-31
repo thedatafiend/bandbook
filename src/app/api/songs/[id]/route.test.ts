@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 let singleCallCount = 0;
 let singleResults: Array<{ data: unknown; error?: unknown }> = [];
 let updateResult: { error: unknown } = { error: null };
+let deleteResult: { error: unknown } = { error: null };
 
 const mockQuery = {
   select: vi.fn(),
@@ -19,6 +20,9 @@ let orderResults: Array<{ data: unknown }> = [];
 let orderCallCount = 0;
 let inResult: { data: unknown } = { data: [] };
 let createSignedUrlsResult: { data: unknown } = { data: [] };
+// Result for chains that terminate on a non-single/order method (e.g. the
+// `select(...).eq(...)` used to gather version audio_urls before deletion).
+let queryResult: { data: unknown; error?: unknown } = { data: [] };
 
 function resetChain() {
   singleCallCount = 0;
@@ -40,10 +44,25 @@ function resetChain() {
   mockQuery.update.mockImplementation(() => ({
     eq: vi.fn(() => updateResult),
   }));
+  mockQuery.delete.mockImplementation(() => ({
+    eq: vi.fn(() => Promise.resolve(deleteResult)),
+  }));
 }
 
+// Make the query chain thenable so awaiting a chain that ends on a method
+// other than single()/order() resolves to queryResult. Defined as a
+// non-enumerable property so it doesn't interfere with the resetChain loop
+// over the query methods.
+Object.defineProperty(mockQuery, "then", {
+  enumerable: false,
+  writable: true,
+  value: (resolve: (value: unknown) => void) => resolve(queryResult),
+});
+
+const mockRemove = vi.fn(() => Promise.resolve({ error: null }));
 const mockStorageFrom = vi.fn(() => ({
   createSignedUrls: vi.fn(() => Promise.resolve(createSignedUrlsResult)),
+  remove: mockRemove,
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -59,7 +78,7 @@ vi.mock("@/lib/auth", () => ({
   getAuthContext: vi.fn(),
 }));
 
-import { GET, PATCH } from "./route";
+import { GET, PATCH, DELETE } from "./route";
 import { getAuthContext } from "@/lib/auth";
 
 const mockGetAuth = vi.mocked(getAuthContext);
@@ -314,5 +333,83 @@ describe("PATCH /api/songs/[id]", () => {
 
     const res = await PATCH(makeReq({ status: "archived" }), makeParams("s1"));
     expect(res.status).toBe(400);
+  });
+});
+
+describe("DELETE /api/songs/[id]", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    singleResults = [];
+    orderResults = [];
+    inResult = { data: [] };
+    queryResult = { data: [] };
+    updateResult = { error: null };
+    deleteResult = { error: null };
+    resetChain();
+  });
+
+  it("returns 401 when not authenticated", async () => {
+    mockGetAuth.mockResolvedValue(null);
+    const res = await DELETE(new Request("http://localhost"), makeParams("s1"));
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 404 when song not found or not in band", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: null }];
+
+    const res = await DELETE(new Request("http://localhost"), makeParams("s1"));
+    expect(res.status).toBe(404);
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
+
+  it("deletes a song with no audio versions", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+    queryResult = { data: [{ audio_url: null }] };
+
+    const res = await DELETE(new Request("http://localhost"), makeParams("s1"));
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
+
+  it("removes associated audio files before deleting", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+    queryResult = {
+      data: [
+        { audio_url: "b1/s1/v1.mp3" },
+        { audio_url: null },
+        { audio_url: "b1/s1/v2.mp3" },
+      ],
+    };
+
+    const res = await DELETE(new Request("http://localhost"), makeParams("s1"));
+    expect(res.status).toBe(200);
+    expect(mockRemove).toHaveBeenCalledWith(["b1/s1/v1.mp3", "b1/s1/v2.mp3"]);
+  });
+
+  it("returns 500 when the delete fails", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+    queryResult = { data: [] };
+    deleteResult = { error: new Error("db error") };
+
+    const res = await DELETE(new Request("http://localhost"), makeParams("s1"));
+    expect(res.status).toBe(500);
   });
 });
