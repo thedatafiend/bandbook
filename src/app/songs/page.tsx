@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { NewSongModal } from "@/components/new-song-modal";
+import { SongListItem, type SongCard } from "@/components/song-list-item";
 import { SongsSkeleton } from "@/components/skeletons/songs-skeleton";
 import { cacheGet, cacheSet, cacheInvalidate } from "@/lib/cache";
 
@@ -16,30 +16,8 @@ interface BandInfo {
   invite_token: string;
 }
 
-interface SongCard {
-  id: string;
-  title: string;
-  status: string;
-  version_count: number;
-  has_lyrics: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 type SortOption = "updated" | "title" | "created";
 type StatusFilter = "all" | "draft" | "in-progress" | "finished";
-
-const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-surface-alt text-muted",
-  "in-progress": "bg-amber-900/60 text-amber-300",
-  finished: "bg-emerald-900/60 text-emerald-300",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  "in-progress": "In Progress",
-  finished: "Finished",
-};
 
 const FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -155,13 +133,13 @@ export default function SongsPage() {
 
   const hasFiltersActive = statusFilter !== "all" || debouncedQuery !== "";
 
-  function formatDate(dateStr: string) {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
+  const handleSongDeleted = useCallback((id: string) => {
+    setSongs((prev) => {
+      const next = prev.filter((s) => s.id !== id);
+      cacheSet("songs", next);
+      return next;
     });
-  }
+  }, []);
 
   if (loading) {
     return (
@@ -327,49 +305,11 @@ export default function SongsPage() {
           {filteredSongs.length > 0 ? (
             <div className="flex flex-col gap-3">
               {filteredSongs.map((song) => (
-                <Link
+                <SongListItem
                   key={song.id}
-                  href={`/songs/${song.id}`}
-                  className="w-full text-left rounded-lg glass glass-hover px-4 py-3 transition block"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-foreground font-medium truncate mr-2">
-                      {song.title}
-                    </h3>
-                    <span
-                      className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[song.status] ?? STATUS_COLORS.draft}`}
-                    >
-                      {STATUS_LABELS[song.status] ?? song.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 text-muted-dim text-xs">
-                    <span>
-                      {song.version_count > 0
-                        ? `${song.version_count} ${song.version_count === 1 ? "version" : "versions"}`
-                        : "Lyrics only"}
-                    </span>
-                    {song.has_lyrics && (
-                      <span className="flex items-center gap-1">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M12 20h9" />
-                          <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" />
-                        </svg>
-                        Lyrics
-                      </span>
-                    )}
-                    <span>Updated {formatDate(song.updated_at)}</span>
-                  </div>
-                </Link>
+                  song={song}
+                  onDeleted={handleSongDeleted}
+                />
               ))}
             </div>
           ) : (
