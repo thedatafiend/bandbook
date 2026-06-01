@@ -55,6 +55,15 @@ export interface Version {
   created_by_member_id: string;
 }
 
+export interface RecordingShare {
+  id: string;
+  version_id: string;
+  token: string;
+  revoked_at: string | null;
+  created_at: string;
+  created_by_member_id: string;
+}
+
 export interface LyricSection {
   id: string;
   song_id: string;

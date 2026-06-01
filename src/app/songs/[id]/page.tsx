@@ -16,6 +16,7 @@ interface VersionDetail {
   created_at: string;
   created_by_member_id: string;
   created_by_nickname: string;
+  share_token: string | null;
 }
 
 interface LyricSectionDetail {
@@ -800,6 +801,46 @@ function VersionCard({
   const [settingCurrent, setSettingCurrent] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [shareToken, setShareToken] = useState<string | null>(version.share_token);
+  const [sharing, setSharing] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const shareUrl =
+    shareToken && typeof window !== "undefined"
+      ? `${window.location.origin}/share/${shareToken}`
+      : "";
+
+  async function createShareLink() {
+    setSharing(true);
+    const res = await fetch(`/api/versions/${version.id}/share`, {
+      method: "POST",
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setShareToken(data.share.token);
+    }
+    setSharing(false);
+  }
+
+  async function revokeShareLink() {
+    setSharing(true);
+    const res = await fetch(`/api/versions/${version.id}/share`, {
+      method: "DELETE",
+    });
+    if (res.ok) setShareToken(null);
+    setSharing(false);
+  }
+
+  async function copyShareLink() {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard unavailable (e.g. insecure context) — ignore silently.
+    }
+  }
 
   async function saveChanges() {
     setSaving(true);
@@ -872,6 +913,14 @@ function VersionCard({
               Current
             </span>
           )}
+          {shareToken && (
+            <span
+              className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full"
+              title="A public share link is active"
+            >
+              Shared
+            </span>
+          )}
           <button
             onClick={onEdit}
             className="text-muted-dim hover:text-foreground transition p-1"
@@ -916,6 +965,61 @@ function VersionCard({
             rows={2}
             className="rounded-lg bg-surface-alt border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none"
           />
+
+          {/* Shareable link */}
+          <div className="rounded-lg border border-border bg-surface-alt/40 px-3 py-2.5 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-foreground text-xs font-medium">
+                Share link
+              </span>
+              {shareToken ? (
+                <button
+                  onClick={revokeShareLink}
+                  disabled={sharing}
+                  className="text-xs text-red-400 hover:text-red-300 transition disabled:opacity-50"
+                >
+                  {sharing ? "..." : "Revoke"}
+                </button>
+              ) : (
+                <button
+                  onClick={createShareLink}
+                  disabled={sharing}
+                  className="text-xs text-foreground/80 hover:text-foreground transition disabled:opacity-50"
+                >
+                  {sharing ? "Creating..." : "Create link"}
+                </button>
+              )}
+            </div>
+            {shareToken ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={shareUrl}
+                    onFocus={(e) => e.target.select()}
+                    className="flex-1 min-w-0 rounded-md bg-surface border border-border px-2 py-1.5 text-xs text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  />
+                  <button
+                    onClick={copyShareLink}
+                    className="shrink-0 rounded-md border border-border-light text-foreground/80 py-1.5 px-3 text-xs hover:bg-surface transition"
+                  >
+                    {copied ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <p className="text-muted-dim text-xs">
+                  Anyone with this link can stream this recording. Revoke to
+                  disable it.
+                </p>
+              </>
+            ) : (
+              <p className="text-muted-dim text-xs">
+                Create a public link to let others hear this recording without
+                signing in.
+              </p>
+            )}
+          </div>
+
           <div className="flex items-center gap-2">
             <button
               onClick={saveChanges}

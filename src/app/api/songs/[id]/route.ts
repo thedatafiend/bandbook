@@ -191,7 +191,9 @@ export async function GET(
   // Fetch members and generate signed URLs in parallel
   const audioUrls = versions.filter((v) => v.audio_url).map((v) => v.audio_url);
 
-  const [memberMap, signedUrlMap] = await Promise.all([
+  const versionIds = versions.map((v) => v.id);
+
+  const [memberMap, signedUrlMap, shareMap] = await Promise.all([
     // Fetch member nicknames
     (async () => {
       const map: Record<string, string> = {};
@@ -225,12 +227,30 @@ export async function GET(
       }
       return map;
     })(),
+    // Map version_id -> active (non-revoked) share token, if any
+    (async () => {
+      const map: Record<string, string> = {};
+      if (versionIds.length > 0) {
+        const { data: shares } = await supabase
+          .from("recording_shares")
+          .select("version_id, token")
+          .is("revoked_at", null)
+          .in("version_id", versionIds);
+        if (shares) {
+          for (const s of shares) {
+            map[s.version_id] = s.token;
+          }
+        }
+      }
+      return map;
+    })(),
   ]);
 
   const versionsWithDetails = versions.map((v) => ({
     ...v,
     signed_audio_url: v.audio_url ? (signedUrlMap[v.audio_url] ?? null) : null,
     created_by_nickname: memberMap[v.created_by_member_id] ?? "Unknown",
+    share_token: shareMap[v.id] ?? null,
   }));
 
   const lyricSectionsWithNicknames = lyricSections.map((s) => ({
