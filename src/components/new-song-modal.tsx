@@ -106,45 +106,77 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
     uploadToSong(data.song.id);
   }
 
-  function uploadToSong(songId: string) {
+  async function uploadToSong(songId: string) {
     if (!file) return;
+    const currentFile = file;
     setStep("uploading");
     setUploadProgress(0);
+    setError("");
 
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", `/api/songs/${songId}/versions`);
-
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        setUploadProgress(Math.round((e.loaded / e.total) * 100));
+    try {
+      // 1. Ask the server for a signed upload URL. Sending the file through our
+      //    API route would hit Vercel's ~4.5MB function payload limit
+      //    (FUNCTION_PAYLOAD_TOO_LARGE). The file goes browser → Supabase
+      //    Storage directly. This mirrors the UploadWidget on the song page.
+      const urlRes = await fetch(`/api/songs/${songId}/versions/upload-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: currentFile.name }),
+      });
+      if (!urlRes.ok) {
+        throw new Error(await readError(urlRes, "Failed to start upload"));
       }
-    };
+      const { signedUrl, path } = (await urlRes.json()) as {
+        signedUrl: string;
+        token: string;
+        path: string;
+      };
 
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        router.push(`/songs/${songId}`);
-      } else {
-        let msg = "Upload failed";
-        try {
-          const resp = JSON.parse(xhr.responseText);
-          msg = resp.error ?? msg;
-        } catch {
-          // ignore parse error
-        }
-        setError(msg);
-        setStep("upload-destination");
+      // 2. PUT directly to Supabase Storage's signed URL. Use XHR so we can
+      //    show upload progress (fetch can't observe upload progress yet).
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", signedUrl);
+        xhr.setRequestHeader("Content-Type", currentFile.type || "audio/mpeg");
+        xhr.setRequestHeader("x-upsert", "false");
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setUploadProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            const snippet = xhr.responseText?.slice(0, 200).trim();
+            reject(
+              new Error(
+                `Storage upload failed (HTTP ${xhr.status})${snippet ? `: ${snippet}` : ""}`
+              )
+            );
+          }
+        };
+        xhr.onerror = () =>
+          reject(new Error("Storage upload failed. Check your connection."));
+        xhr.send(currentFile);
+      });
+
+      // 3. Register the version row. Small JSON body, fits well under the
+      //    Vercel function limit.
+      const finRes = await fetch(`/api/songs/${songId}/versions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
+      });
+      if (!finRes.ok) {
+        throw new Error(await readError(finRes, "Failed to register version"));
       }
-    };
 
-    xhr.onerror = () => {
-      setError("Upload failed. Check your connection and try again.");
+      router.push(`/songs/${songId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
       setStep("upload-destination");
-    };
-
-    xhr.send(formData);
+    }
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -418,4 +450,18 @@ export function NewSongModal({ onClose }: { onClose: () => void }) {
       </div>
     </div>
   );
+}
+
+async function readError(res: Response, fallback: string): Promise<string> {
+  // Surface the actual server error when the body is JSON; otherwise include
+  // the HTTP status and a snippet so we don't collapse every failure into the
+  // same generic message.
+  try {
+    const data = await res.clone().json();
+    if (data?.error) return String(data.error);
+  } catch {
+    // not JSON
+  }
+  const text = (await res.text().catch(() => "")).slice(0, 200).trim();
+  return `${fallback} (HTTP ${res.status})${text ? `: ${text}` : ""}`;
 }
