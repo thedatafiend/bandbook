@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 vi.mock("next/font/google", () => ({
-  Geist: () => ({ variable: "--font-geist-sans" }),
+  Inter: () => ({ variable: "--font-inter" }),
   Geist_Mono: () => ({ variable: "--font-geist-mono" }),
 }));
 
