@@ -2,8 +2,14 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 vi.mock("next/font/google", () => ({
-  Geist: () => ({ variable: "--font-geist-sans" }),
+  Inter: () => ({ variable: "--font-inter" }),
   Geist_Mono: () => ({ variable: "--font-geist-mono" }),
+}));
+
+vi.mock("next/link", () => ({
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
 }));
 
 vi.mock("@vercel/analytics/next", () => ({

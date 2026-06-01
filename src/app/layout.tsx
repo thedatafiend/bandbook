@@ -6,12 +6,14 @@ import {
   SignUpButton,
   UserButton,
 } from "@clerk/nextjs";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import Link from "next/link";
+import { Logo } from "@/components/logo";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
@@ -33,7 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
         <meta name="theme-color" content="#000000" />
@@ -45,22 +47,27 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-black">
         <ClerkProvider>
-          <header className="flex justify-end items-center px-6 py-3 gap-4">
-            <Show when="signed-out">
-              <SignInButton forceRedirectUrl="/">
-                <button className="text-sm text-muted hover:text-foreground transition">
-                  Sign In
-                </button>
-              </SignInButton>
-              <SignUpButton forceRedirectUrl="/">
-                <button className="text-sm rounded-lg bg-accent text-white font-medium py-2 px-4 hover:bg-accent-hover transition">
-                  Sign Up
-                </button>
-              </SignUpButton>
-            </Show>
-            <Show when="signed-in">
-              <UserButton />
-            </Show>
+          <header className="flex justify-between items-center px-6 py-3 gap-4">
+            <Link href="/" className="transition hover:opacity-80" aria-label="BandBook home">
+              <Logo size={28} withWordmark />
+            </Link>
+            <div className="flex items-center gap-4">
+              <Show when="signed-out">
+                <SignInButton forceRedirectUrl="/">
+                  <button className="text-sm text-muted hover:text-foreground transition">
+                    Sign In
+                  </button>
+                </SignInButton>
+                <SignUpButton forceRedirectUrl="/">
+                  <button className="text-sm rounded-lg bg-accent text-white font-medium py-2 px-4 hover:bg-accent-hover transition">
+                    Sign Up
+                  </button>
+                </SignUpButton>
+              </Show>
+              <Show when="signed-in">
+                <UserButton />
+              </Show>
+            </div>
           </header>
           {children}
           <Analytics />
