@@ -12,6 +12,7 @@ const mockQuery = {
   delete: vi.fn(),
   eq: vi.fn(),
   in: vi.fn(),
+  is: vi.fn(),
   order: vi.fn(),
   single: vi.fn(),
 };
