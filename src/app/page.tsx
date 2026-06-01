@@ -6,6 +6,7 @@ import { useAuth, SignInButton, SignUpButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { CreateBandForm } from "@/components/create-band-form";
 import { JoinBandForm } from "@/components/join-band-form";
+import { LogoMark } from "@/components/logo";
 
 interface UserBand {
   member_id: string;
@@ -72,6 +73,7 @@ function HomeContent() {
     <main className="flex flex-1 flex-col items-center px-6 py-12">
       {/* Hero */}
       <section className="flex flex-col items-center text-center max-w-md mb-16">
+        <LogoMark size={64} decorative className="mb-4" />
         <h1 className="text-5xl font-bold tracking-tight mb-3">BandBook</h1>
         <p className="text-lg text-muted mb-8">
           A shared songwriting workspace for your band.
