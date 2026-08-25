@@ -40,6 +40,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid invite link" }, { status: 404 });
   }
 
+  // Already a member (e.g. a legacy membership claimed at sign-in, or a
+  // re-clicked invite link): don't insert a duplicate row, and don't gate
+  // on a passcode that may have rotated since they joined. Just activate
+  // the band.
+  const { data: existing } = await supabase
+    .from("members")
+    .select("id, nickname")
+    .eq("band_id", band.id)
+    .eq("clerk_user_id", userId)
+    .single<Pick<Member, "id" | "nickname">>();
+
+  if (existing) {
+    await setBandCookie(band.id);
+    return NextResponse.json({
+      band: { id: band.id, name: band.name },
+      member: { id: existing.id, nickname: existing.nickname },
+      alreadyMember: true,
+    });
+  }
+
   const valid = await bcrypt.compare(passcode, band.passcode_hash);
   if (!valid) {
     return NextResponse.json({ error: "Incorrect passcode" }, { status: 401 });
