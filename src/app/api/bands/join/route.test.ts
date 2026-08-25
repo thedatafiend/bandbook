@@ -22,6 +22,7 @@ vi.mock("@clerk/nextjs/server", () => ({
 import { POST } from "./route";
 import { auth } from "@clerk/nextjs/server";
 import bcrypt from "bcryptjs";
+import { setBandCookie } from "@/lib/session";
 
 const mockAuth = vi.mocked(auth);
 const mockCompare = vi.mocked(bcrypt.compare);
@@ -71,7 +72,9 @@ describe("POST /api/bands/join", () => {
   });
 
   it("returns 401 when passcode is wrong", async () => {
-    mockQuery.single.mockResolvedValueOnce({ data: { id: "b1", passcode_hash: "hash" }, error: null });
+    mockQuery.single
+      .mockResolvedValueOnce({ data: { id: "b1", passcode_hash: "hash" }, error: null })
+      .mockResolvedValueOnce({ data: null, error: new Error("not found") });
     mockCompare.mockResolvedValue(false as never);
 
     const res = await POST(makeReq({ inviteToken: "tok", passcode: "wrong", nickname: "A" }));
@@ -84,6 +87,7 @@ describe("POST /api/bands/join", () => {
 
     mockQuery.single
       .mockResolvedValueOnce({ data: band, error: null })
+      .mockResolvedValueOnce({ data: null, error: new Error("not found") })
       .mockResolvedValueOnce({ data: member, error: null });
     mockCompare.mockResolvedValue(true as never);
 
@@ -101,6 +105,7 @@ describe("POST /api/bands/join", () => {
 
     mockQuery.single
       .mockResolvedValueOnce({ data: band, error: null })
+      .mockResolvedValueOnce({ data: null, error: new Error("not found") })
       .mockResolvedValueOnce({ data: member, error: null });
     mockCompare.mockResolvedValue(true as never);
 
@@ -109,5 +114,38 @@ describe("POST /api/bands/join", () => {
     expect(mockQuery.insert).toHaveBeenCalledWith(
       expect.objectContaining({ role: "member", clerk_user_id: "user_123" })
     );
+  });
+
+  it("returns success without inserting when already a member", async () => {
+    const band = { id: "b1", name: "Band", passcode_hash: "hash" };
+    const existing = { id: "m1", nickname: "Alex" };
+
+    mockQuery.single
+      .mockResolvedValueOnce({ data: band, error: null })
+      .mockResolvedValueOnce({ data: existing, error: null });
+
+    const res = await POST(makeReq({ inviteToken: "tok", passcode: "1234", nickname: "Alex" }));
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.alreadyMember).toBe(true);
+    expect(data.band).toEqual({ id: "b1", name: "Band" });
+    expect(data.member).toEqual({ id: "m1", nickname: "Alex" });
+    expect(mockQuery.insert).not.toHaveBeenCalled();
+    expect(setBandCookie).toHaveBeenCalledWith("b1");
+  });
+
+  it("does not require a valid passcode for an existing member", async () => {
+    const band = { id: "b1", name: "Band", passcode_hash: "hash" };
+    const existing = { id: "m1", nickname: "Alex" };
+
+    mockQuery.single
+      .mockResolvedValueOnce({ data: band, error: null })
+      .mockResolvedValueOnce({ data: existing, error: null });
+
+    const res = await POST(makeReq({ inviteToken: "tok", passcode: "outdated", nickname: "Alex" }));
+
+    expect(res.status).toBe(200);
+    expect(mockCompare).not.toHaveBeenCalled();
   });
 });
