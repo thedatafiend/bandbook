@@ -23,21 +23,17 @@ export async function getAuthContext(): Promise<AuthContext | null> {
 
   const supabase = await createClient();
 
-  const { data: member } = await supabase
+  // Single round trip: membership row with its band embedded.
+  const { data } = await supabase
     .from("members")
-    .select("*")
+    .select("*, bands(*)")
     .eq("clerk_user_id", userId)
     .eq("band_id", bandId)
-    .single<Member>();
+    .single<Member & { bands: Band | null }>();
 
-  if (!member) return null;
+  if (!data) return null;
 
-  const { data: band } = await supabase
-    .from("bands")
-    .select("*")
-    .eq("id", bandId)
-    .single<Band>();
-
+  const { bands: band, ...member } = data;
   if (!band) return null;
 
   return { userId, member, band };

@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth";
 
-// GET /api/songs/[id]/lyrics/revisions — list revision history
+// GET /api/songs/[id]/lyrics/revisions — list revision history.
+// With ?latest=1, returns only the newest revision's metadata (no
+// snapshots) — a few bytes instead of the full history, used by the
+// client's periodic stale-lyrics check.
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await getAuthContext();
@@ -27,6 +30,37 @@ export async function GET(
     return NextResponse.json({ error: "Song not found" }, { status: 404 });
   }
 
+  const latestOnly =
+    new URL(request.url).searchParams.get("latest") === "1";
+
+  if (latestOnly) {
+    const { data: latest } = await supabase
+      .from("lyric_revisions")
+      .select("id, created_at, created_by_member_id")
+      .eq("song_id", songId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    const rev = latest?.[0];
+    if (!rev) {
+      return NextResponse.json({ latest: null });
+    }
+
+    const { data: member } = await supabase
+      .from("members")
+      .select("nickname")
+      .eq("id", rev.created_by_member_id)
+      .single();
+
+    return NextResponse.json({
+      latest: {
+        id: rev.id,
+        created_at: rev.created_at,
+        created_by_nickname: member?.nickname ?? "Unknown",
+      },
+    });
+  }
+
   const { data: revisions } = await supabase
     .from("lyric_revisions")
     .select("id, snapshot, created_at, created_by_member_id, revision_note")
@@ -39,7 +73,7 @@ export async function GET(
     memberIds.add(r.created_by_member_id);
   }
 
-  let memberMap: Record<string, string> = {};
+  const memberMap: Record<string, string> = {};
   if (memberIds.size > 0) {
     const { data: members } = await supabase
       .from("members")

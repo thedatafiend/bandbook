@@ -16,13 +16,60 @@ vi.mock("@clerk/nextjs/server", () => ({
   currentUser: vi.fn(),
 }));
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { setBandCookie } from "@/lib/session";
 
 const mockAuth = vi.mocked(auth);
 const mockCurrentUser = vi.mocked(currentUser);
 const mockSetBandCookie = vi.mocked(setBandCookie);
+
+describe("GET /api/auth/claim-memberships", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    for (const key of Object.keys(mockQuery)) {
+      (mockQuery as Record<string, ReturnType<typeof vi.fn>>)[key].mockReturnValue(mockQuery);
+    }
+  });
+
+  it("returns 401 when not authenticated", async () => {
+    mockAuth.mockResolvedValue({ userId: null } as never);
+    const res = await GET();
+    expect(res.status).toBe(401);
+  });
+
+  it("lists the user's bands without claiming or touching the cookie", async () => {
+    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
+    const existing = [
+      { id: "m1", band_id: "b1", nickname: "Alex", bands: { id: "b1", name: "Rockers" } },
+      { id: "m2", band_id: "b2", nickname: "Al", bands: { id: "b2", name: "Jammers" } },
+    ];
+    mockQuery.eq.mockResolvedValueOnce({ data: existing, error: null });
+
+    const res = await GET();
+    const data = await res.json();
+
+    expect(data.count).toBe(2);
+    expect(data.bands).toEqual([
+      { member_id: "m1", band_id: "b1", band_name: "Rockers", nickname: "Alex" },
+      { member_id: "m2", band_id: "b2", band_name: "Jammers", nickname: "Al" },
+    ]);
+    // Read-only: no claim scan, no Clerk profile fetch, no cookie writes
+    expect(mockQuery.ilike).not.toHaveBeenCalled();
+    expect(mockQuery.update).not.toHaveBeenCalled();
+    expect(mockCurrentUser).not.toHaveBeenCalled();
+    expect(mockSetBandCookie).not.toHaveBeenCalled();
+  });
+
+  it("returns empty list when user has no memberships", async () => {
+    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
+    mockQuery.eq.mockResolvedValueOnce({ data: [], error: null });
+
+    const res = await GET();
+    const data = await res.json();
+    expect(data).toEqual({ bands: [], count: 0 });
+  });
+});
 
 describe("POST /api/auth/claim-memberships", () => {
   beforeEach(() => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { NewSongModal } from "@/components/new-song-modal";
 import { SongListItem, type SongCard } from "@/components/song-list-item";
 import { SongsSkeleton } from "@/components/skeletons/songs-skeleton";
@@ -43,21 +44,11 @@ export default function SongsPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchData = useCallback(async () => {
-    // Fetch auth and songs in parallel instead of sequentially
-    const [authRes, songsRes] = await Promise.all([
-      fetch("/api/auth/me"),
-      fetch("/api/songs"),
-    ]);
+    // Single fetch: /api/songs verifies auth and returns member/band context
+    // alongside the song list.
+    const songsRes = await fetch("/api/songs");
 
-    if (authRes.status === 401) {
-      setSessionExpired(true);
-      setLoading(false);
-      return;
-    }
-
-    const authData = await authRes.json();
-
-    if (!authData.member) {
+    if (songsRes.status === 401) {
       setSessionExpired(true);
       setLoading(false);
       return;
@@ -65,13 +56,19 @@ export default function SongsPage() {
 
     const songsData = await songsRes.json();
 
+    if (!songsData.member) {
+      setSessionExpired(true);
+      setLoading(false);
+      return;
+    }
+
     setSessionExpired(false);
-    setMember(authData.member);
-    setBand(authData.band);
+    setMember(songsData.member);
+    setBand(songsData.band);
     const songsList = songsData.songs ?? [];
     setSongs(songsList);
     cacheSet("songs", songsList);
-    cacheSet("auth", { member: authData.member, band: authData.band });
+    cacheSet("auth", { member: songsData.member, band: songsData.band });
     setLoading(false);
   }, []);
 
@@ -134,6 +131,7 @@ export default function SongsPage() {
   const hasFiltersActive = statusFilter !== "all" || debouncedQuery !== "";
 
   const handleSongDeleted = useCallback((id: string) => {
+    cacheInvalidate(`song:${id}`);
     setSongs((prev) => {
       const next = prev.filter((s) => s.id !== id);
       cacheSet("songs", next);
@@ -165,8 +163,9 @@ export default function SongsPage() {
             </p>
           )}
         </div>
-        <button
-          onClick={() => router.push("/settings")}
+        {/* Link (not router.push) so the settings route is prefetched */}
+        <Link
+          href="/settings"
           className="text-muted hover:text-foreground transition p-2"
           aria-label="Band settings"
         >
@@ -184,7 +183,7 @@ export default function SongsPage() {
             <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
             <circle cx="12" cy="12" r="3" />
           </svg>
-        </button>
+        </Link>
       </header>
 
       {songs.length === 0 && (

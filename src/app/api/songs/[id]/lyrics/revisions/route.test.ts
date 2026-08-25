@@ -13,6 +13,7 @@ const mockQuery = {
   eq: vi.fn(),
   in: vi.fn(),
   order: vi.fn(),
+  limit: vi.fn(),
   single: vi.fn(),
 };
 
@@ -114,6 +115,50 @@ describe("GET /api/songs/[id]/lyrics/revisions", () => {
     const res = await GET(new Request("http://localhost"), makeParams("s1"));
     const data = await res.json();
     expect(data.revisions).toEqual([]);
+  });
+
+  it("?latest=1 returns only the newest revision's metadata, no snapshots", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [
+      { data: { id: "s1" } },                 // song lookup
+      { data: { nickname: "Alex" } },          // member nickname lookup
+    ];
+    mockQuery.limit.mockResolvedValueOnce({
+      data: [{ id: "r9", created_at: "2024-02-01", created_by_member_id: "m1" }],
+    });
+
+    const res = await GET(
+      new Request("http://localhost/api/songs/s1/lyrics/revisions?latest=1"),
+      makeParams("s1")
+    );
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.latest).toEqual({
+      id: "r9",
+      created_at: "2024-02-01",
+      created_by_nickname: "Alex",
+    });
+    expect(data.revisions).toBeUndefined();
+    expect(mockQuery.limit).toHaveBeenCalledWith(1);
+  });
+
+  it("?latest=1 returns null when no revisions exist", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+    mockQuery.limit.mockResolvedValueOnce({ data: [] });
+
+    const res = await GET(
+      new Request("http://localhost/api/songs/s1/lyrics/revisions?latest=1"),
+      makeParams("s1")
+    );
+    const data = await res.json();
+    expect(data.latest).toBeNull();
   });
 });
 
