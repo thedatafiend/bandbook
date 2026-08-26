@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { formatTime, type VersionDetail } from "./shared";
 
 export function AudioPlayer({
@@ -16,12 +16,15 @@ export function AudioPlayer({
   const [duration, setDuration] = useState(0);
   const progressRef = useRef<HTMLDivElement>(null);
 
-  // Reset when version changes
-  useEffect(() => {
+  // Reset when version changes — state adjustment during render (the
+  // React-recommended pattern) instead of a cascading effect.
+  const [prevVersionId, setPrevVersionId] = useState(version?.id);
+  if (version?.id !== prevVersionId) {
+    setPrevVersionId(version?.id);
     setPlaying(false);
     setCurrentTime(0);
     setDuration(0);
-  }, [version?.id]);
+  }
 
   function togglePlay() {
     if (!audioRef.current) return;
