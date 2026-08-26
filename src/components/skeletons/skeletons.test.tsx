@@ -45,11 +45,12 @@ describe("Page skeleton components", () => {
       expect(cards.length).toBeGreaterThanOrEqual(4);
     });
 
-    it("renders tab bar skeletons", () => {
+    it("renders tab bar skeletons without the accent border line", () => {
       const { container } = render(<SongDetailSkeleton />);
-      // Tab bar contains border-b border-border
+      // The theme's border color is purple — the skeleton must not draw a
+      // stray colored line across the page while loading.
       const tabBar = container.querySelector(".border-b.border-border");
-      expect(tabBar).toBeTruthy();
+      expect(tabBar).toBeNull();
     });
   });
 

@@ -23,8 +23,9 @@ export function SongDetailSkeleton() {
         </div>
       </SkeletonCard>
 
-      {/* Tab bar */}
-      <div className="flex gap-6 border-b border-border mb-6">
+      {/* Tab bar — no border-b here: the theme's border color is purple,
+          which reads as a stray line in the otherwise-muted skeleton */}
+      <div className="flex gap-6 mb-6">
         <Skeleton className="h-8 w-20 rounded-t" />
         <Skeleton className="h-8 w-16 rounded-t" />
       </div>
