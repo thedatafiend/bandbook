@@ -131,8 +131,26 @@ describe("GET /api/songs/[id]", () => {
     });
 
     const song = { id: "s1", title: "Test Song", band_id: "b1" };
-    const versions = [{ id: "v1", version_number: 1, audio_url: "path.mp3", created_by_member_id: "m1" }];
-    const sections = [{ id: "ls1", section_type: "verse", content: "La la la", updated_by_member_id: "m1" }];
+    // Nicknames arrive embedded via the FK-hinted members join — no
+    // separate members lookup anymore.
+    const versions = [
+      {
+        id: "v1",
+        version_number: 1,
+        audio_url: "path.mp3",
+        created_by_member_id: "m1",
+        created_by: { nickname: "Alex" },
+      },
+    ];
+    const sections = [
+      {
+        id: "ls1",
+        section_type: "verse",
+        content: "La la la",
+        updated_by_member_id: "m1",
+        updated_by: { nickname: "Alex" },
+      },
+    ];
 
     // Promise.all resolves: [songResult, versionsResult, lyricsResult]
     singleResults = [{ data: song, error: null }];
@@ -140,7 +158,8 @@ describe("GET /api/songs/[id]", () => {
       { data: versions },
       { data: sections },
     ];
-    inResult = { data: [{ id: "m1", nickname: "Alex" }] };
+    // The .in() chain now serves the recording_shares lookup
+    inResult = { data: [{ version_id: "v1", token: "tok_1" }] };
     createSignedUrlsResult = {
       data: [{ path: "path.mp3", signedUrl: "https://signed.url" }],
     };
@@ -152,7 +171,9 @@ describe("GET /api/songs/[id]", () => {
     expect(data.song.versions).toHaveLength(1);
     expect(data.song.versions[0].signed_audio_url).toBe("https://signed.url");
     expect(data.song.versions[0].created_by_nickname).toBe("Alex");
+    expect(data.song.versions[0].share_token).toBe("tok_1");
     expect(data.song.lyric_sections).toHaveLength(1);
+    expect(data.song.lyric_sections[0].updated_by_nickname).toBe("Alex");
   });
 });
 

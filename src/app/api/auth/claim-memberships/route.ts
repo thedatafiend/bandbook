@@ -2,34 +2,7 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { setBandCookie } from "@/lib/session";
-import type { SupabaseClient } from "@supabase/supabase-js";
-
-interface UserBand {
-  member_id: string;
-  band_id: string;
-  band_name: string;
-  nickname: string;
-}
-
-async function listUserBands(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<UserBand[]> {
-  const { data: memberships } = await supabase
-    .from("members")
-    .select("id, band_id, nickname, bands(id, name)")
-    .eq("clerk_user_id", userId);
-
-  return (memberships ?? []).map((m: Record<string, unknown>) => {
-    const band = m.bands as { id: string; name: string } | null;
-    return {
-      member_id: m.id as string,
-      band_id: m.band_id as string,
-      band_name: band?.name ?? "Unknown",
-      nickname: m.nickname as string,
-    };
-  });
-}
+import { listUserBands } from "@/lib/queries";
 
 /**
  * Read-only listing of the user's bands. Unlike POST, this skips the

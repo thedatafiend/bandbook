@@ -9,6 +9,9 @@ export interface AuthContext {
   band: Band;
 }
 
+/** Only write last_active_at when the stored value is older than this. */
+const LAST_ACTIVE_THROTTLE_MS = 5 * 60 * 1000;
+
 /**
  * Verify the current Clerk session and return the authenticated user's
  * membership + band for the active band context.
@@ -35,6 +38,19 @@ export async function getAuthContext(): Promise<AuthContext | null> {
 
   const { bands: band, ...member } = data;
   if (!band) return null;
+
+  // Track member activity, throttled so authenticated reads aren't a write
+  // on every request. (Pages no longer call /api/auth/me, which used to do
+  // this.)
+  const lastActive = member.last_active_at
+    ? new Date(member.last_active_at).getTime()
+    : 0;
+  if (Date.now() - lastActive > LAST_ACTIVE_THROTTLE_MS) {
+    await supabase
+      .from("members")
+      .update({ last_active_at: new Date().toISOString() })
+      .eq("id", member.id);
+  }
 
   return { userId, member, band };
 }

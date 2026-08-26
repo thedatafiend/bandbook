@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth";
+import { listBandMembers } from "@/lib/queries";
 
 export async function GET() {
   const auth = await getAuthContext();
@@ -9,14 +10,9 @@ export async function GET() {
   }
 
   const supabase = await createClient();
+  const members = await listBandMembers(supabase, auth.band.id);
 
-  const { data: members, error } = await supabase
-    .from("members")
-    .select("id, nickname, created_at, last_active_at")
-    .eq("band_id", auth.band.id)
-    .order("created_at", { ascending: true });
-
-  if (error) {
+  if (members === null) {
     return NextResponse.json({ error: "Failed to fetch members" }, { status: 500 });
   }
 

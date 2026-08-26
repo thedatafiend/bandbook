@@ -5,12 +5,14 @@ let singleResults: Array<{ data: unknown }> = [];
 
 const mockQuery = {
   select: vi.fn(),
+  update: vi.fn(),
   eq: vi.fn(),
   single: vi.fn(),
 };
 
 // Chain everything back to mockQuery
 mockQuery.select.mockReturnValue(mockQuery);
+mockQuery.update.mockReturnValue(mockQuery);
 mockQuery.eq.mockReturnValue(mockQuery);
 mockQuery.single.mockImplementation(() => {
   const result = singleResults[singleCallCount] ?? { data: null };
@@ -44,6 +46,7 @@ describe("getAuthContext", () => {
     singleResults = [];
     // Re-setup chaining after clearAllMocks
     mockQuery.select.mockReturnValue(mockQuery);
+    mockQuery.update.mockReturnValue(mockQuery);
     mockQuery.eq.mockReturnValue(mockQuery);
     mockQuery.single.mockImplementation(() => {
       const result = singleResults[singleCallCount] ?? { data: null };
@@ -82,7 +85,13 @@ describe("getAuthContext", () => {
   it("returns userId, member, and band when session is valid", async () => {
     mockAuth.mockResolvedValue({ userId: "user_123" } as never);
     mockGetBandCookie.mockResolvedValue("band-1");
-    const member = { id: "m1", band_id: "band-1", nickname: "Alex", clerk_user_id: "user_123" };
+    const member = {
+      id: "m1",
+      band_id: "band-1",
+      nickname: "Alex",
+      clerk_user_id: "user_123",
+      last_active_at: new Date().toISOString(),
+    };
     const band = { id: "band-1", name: "The Band" };
     singleResults = [{ data: { ...member, bands: band } }];
 
@@ -93,11 +102,52 @@ describe("getAuthContext", () => {
   it("fetches member and band in a single query", async () => {
     mockAuth.mockResolvedValue({ userId: "user_123" } as never);
     mockGetBandCookie.mockResolvedValue("band-1");
-    const member = { id: "m1", band_id: "band-1", nickname: "Alex", clerk_user_id: "user_123" };
+    const member = {
+      id: "m1",
+      band_id: "band-1",
+      nickname: "Alex",
+      clerk_user_id: "user_123",
+      last_active_at: new Date().toISOString(),
+    };
     singleResults = [{ data: { ...member, bands: { id: "band-1", name: "The Band" } } }];
 
     await getAuthContext();
     expect(mockQuery.select).toHaveBeenCalledWith("*, bands(*)");
     expect(mockQuery.single).toHaveBeenCalledTimes(1);
+  });
+
+  it("touches last_active_at when stale, and skips the write when recent", async () => {
+    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
+    mockGetBandCookie.mockResolvedValue("band-1");
+    const band = { id: "band-1", name: "The Band" };
+
+    // Stale → write
+    const staleMember = {
+      id: "m1",
+      band_id: "band-1",
+      nickname: "Alex",
+      clerk_user_id: "user_123",
+      last_active_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+    };
+    singleResults = [{ data: { ...staleMember, bands: band } }];
+    await getAuthContext();
+    expect(mockQuery.update).toHaveBeenCalledWith(
+      expect.objectContaining({ last_active_at: expect.any(String) })
+    );
+
+    // Recent → no write
+    mockQuery.update.mockClear();
+    singleCallCount = 0;
+    singleResults = [
+      {
+        data: {
+          ...staleMember,
+          last_active_at: new Date().toISOString(),
+          bands: band,
+        },
+      },
+    ];
+    await getAuthContext();
+    expect(mockQuery.update).not.toHaveBeenCalled();
   });
 });
