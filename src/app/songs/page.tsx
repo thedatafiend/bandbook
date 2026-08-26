@@ -34,6 +34,7 @@ export default function SongsPage() {
   const [songs, setSongs] = useState<SongCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -48,20 +49,24 @@ export default function SongsPage() {
     // alongside the song list.
     const songsRes = await fetch("/api/songs");
 
+    // Only a 401 means the session is gone. Any other failure (e.g. a 500)
+    // must surface as an error — treating it as an expired session sends a
+    // signed-in user into a redirect loop.
     if (songsRes.status === 401) {
       setSessionExpired(true);
       setLoading(false);
       return;
     }
 
-    const songsData = await songsRes.json();
-
-    if (!songsData.member) {
-      setSessionExpired(true);
+    if (!songsRes.ok) {
+      setLoadError(true);
       setLoading(false);
       return;
     }
 
+    const songsData = await songsRes.json();
+
+    setLoadError(false);
     setSessionExpired(false);
     setMember(songsData.member);
     setBand(songsData.band);
@@ -150,6 +155,24 @@ export default function SongsPage() {
   if (sessionExpired) {
     router.push("/sign-in");
     return null;
+  }
+
+  if (loadError) {
+    return (
+      <main className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+        <p className="text-muted mb-4">Couldn&apos;t load your songs.</p>
+        <button
+          onClick={() => {
+            setLoadError(false);
+            setLoading(true);
+            fetchData();
+          }}
+          className="rounded-lg border border-border-light text-foreground font-semibold py-2 px-4 hover:bg-surface-alt transition"
+        >
+          Try again
+        </button>
+      </main>
+    );
   }
 
   return (

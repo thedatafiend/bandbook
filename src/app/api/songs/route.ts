@@ -25,15 +25,19 @@ export async function GET() {
 
   // One round trip: songs with version/lyric counts aggregated in-database,
   // instead of fetching every version and lyric row just to count them.
+  // versions must be disambiguated via !song_id — songs and versions are
+  // linked by two FKs (versions.song_id and songs.current_version_id), so a
+  // bare versions(count) embed fails with PGRST201.
   const { data: songs, error } = await supabase
     .from("songs")
     .select(
-      "id, title, status, current_version_id, created_at, updated_at, created_by_member_id, versions(count), lyric_sections(count)"
+      "id, title, status, current_version_id, created_at, updated_at, created_by_member_id, versions!song_id(count), lyric_sections(count)"
     )
     .eq("band_id", auth.band.id)
     .order("updated_at", { ascending: false });
 
   if (error) {
+    console.error("GET /api/songs failed:", error);
     return NextResponse.json({ error: "Failed to fetch songs" }, { status: 500 });
   }
 

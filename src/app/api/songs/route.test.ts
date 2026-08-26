@@ -95,6 +95,21 @@ describe("GET /api/songs", () => {
     expect(mockQuery.in).not.toHaveBeenCalled();
   });
 
+  it("disambiguates the versions embed by FK column", async () => {
+    // songs↔versions are linked by two FKs (versions.song_id and
+    // songs.current_version_id); a bare versions(count) fails with PGRST201.
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1", nickname: "Alex" } as never,
+      band: { id: "b1", name: "The Band", invite_token: "inv" } as never,
+    });
+    mockQuery.order.mockResolvedValue({ data: [], error: null });
+
+    await GET();
+    expect(mockQuery.select).toHaveBeenCalledWith(
+      expect.stringContaining("versions!song_id(count)")
+    );
+  });
+
   it("includes the caller's member and band context", async () => {
     mockGetAuth.mockResolvedValue({
       member: { id: "m1", nickname: "Alex" } as never,
