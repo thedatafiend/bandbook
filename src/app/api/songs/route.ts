@@ -3,6 +3,18 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth";
 import type { Song } from "@/lib/supabase/types";
 
+interface SongWithCounts {
+  id: string;
+  title: string;
+  status: string;
+  current_version_id: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by_member_id: string;
+  versions: Array<{ count: number }>;
+  lyric_sections: Array<{ count: number }>;
+}
+
 export async function GET() {
   const auth = await getAuthContext();
   if (!auth) {
@@ -11,44 +23,25 @@ export async function GET() {
 
   const supabase = await createClient();
 
+  // One round trip: songs with version/lyric counts aggregated in-database,
+  // instead of fetching every version and lyric row just to count them.
+  // versions must be disambiguated via !song_id — songs and versions are
+  // linked by two FKs (versions.song_id and songs.current_version_id), so a
+  // bare versions(count) embed fails with PGRST201.
   const { data: songs, error } = await supabase
     .from("songs")
-    .select("*")
+    .select(
+      "id, title, status, current_version_id, created_at, updated_at, created_by_member_id, versions!song_id(count), lyric_sections(count)"
+    )
     .eq("band_id", auth.band.id)
     .order("updated_at", { ascending: false });
 
   if (error) {
+    console.error("GET /api/songs failed:", error);
     return NextResponse.json({ error: "Failed to fetch songs" }, { status: 500 });
   }
 
-  // Get version counts and lyric presence per song
-  const songIds = (songs ?? []).map((s) => s.id);
-  let versionCounts: Record<string, number> = {};
-  const songsWithLyrics = new Set<string>();
-
-  if (songIds.length > 0) {
-    const [versionsResult, lyricsResult] = await Promise.all([
-      supabase.from("versions").select("song_id").in("song_id", songIds),
-      supabase
-        .from("lyric_sections")
-        .select("song_id")
-        .in("song_id", songIds),
-    ]);
-
-    if (versionsResult.data) {
-      for (const v of versionsResult.data) {
-        versionCounts[v.song_id] = (versionCounts[v.song_id] ?? 0) + 1;
-      }
-    }
-
-    if (lyricsResult.data) {
-      for (const l of lyricsResult.data) {
-        songsWithLyrics.add(l.song_id);
-      }
-    }
-  }
-
-  const result = (songs ?? []).map((song) => ({
+  const result = ((songs ?? []) as unknown as SongWithCounts[]).map((song) => ({
     id: song.id,
     title: song.title,
     status: song.status,
@@ -56,11 +49,17 @@ export async function GET() {
     created_at: song.created_at,
     updated_at: song.updated_at,
     created_by_member_id: song.created_by_member_id,
-    version_count: versionCounts[song.id] ?? 0,
-    has_lyrics: songsWithLyrics.has(song.id),
+    version_count: song.versions?.[0]?.count ?? 0,
+    has_lyrics: (song.lyric_sections?.[0]?.count ?? 0) > 0,
   }));
 
-  return NextResponse.json({ songs: result });
+  // Include the caller's member/band context (already loaded by
+  // getAuthContext) so the songs page needs a single fetch.
+  return NextResponse.json({
+    songs: result,
+    member: { nickname: auth.member.nickname },
+    band: { name: auth.band.name, invite_token: auth.band.invite_token },
+  });
 }
 
 export async function POST(request: Request) {

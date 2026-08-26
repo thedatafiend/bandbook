@@ -43,8 +43,8 @@ describe("GET /api/songs", () => {
 
   it("returns empty songs list", async () => {
     mockGetAuth.mockResolvedValue({
-      member: { id: "m1" } as never,
-      band: { id: "b1" } as never,
+      member: { id: "m1", nickname: "Alex" } as never,
+      band: { id: "b1", name: "The Band", invite_token: "inv" } as never,
     });
     mockQuery.order.mockResolvedValue({ data: [], error: null });
 
@@ -54,25 +54,73 @@ describe("GET /api/songs", () => {
     expect(data.songs).toEqual([]);
   });
 
-  it("returns songs with version counts and lyrics info", async () => {
+  it("returns songs with version counts and lyrics info from aggregated query", async () => {
     mockGetAuth.mockResolvedValue({
-      member: { id: "m1" } as never,
-      band: { id: "b1" } as never,
+      member: { id: "m1", nickname: "Alex" } as never,
+      band: { id: "b1", name: "The Band", invite_token: "inv" } as never,
     });
     const songs = [
-      { id: "s1", title: "Song 1", status: "draft", current_version_id: null, created_at: "2024-01-01", updated_at: "2024-01-01", created_by_member_id: "m1" },
+      {
+        id: "s1",
+        title: "Song 1",
+        status: "draft",
+        current_version_id: null,
+        created_at: "2024-01-01",
+        updated_at: "2024-01-01",
+        created_by_member_id: "m1",
+        versions: [{ count: 2 }],
+        lyric_sections: [{ count: 3 }],
+      },
+      {
+        id: "s2",
+        title: "Song 2",
+        status: "draft",
+        current_version_id: null,
+        created_at: "2024-01-02",
+        updated_at: "2024-01-02",
+        created_by_member_id: "m1",
+        versions: [{ count: 0 }],
+        lyric_sections: [{ count: 0 }],
+      },
     ];
     mockQuery.order.mockResolvedValueOnce({ data: songs, error: null });
-
-    // versions and lyrics queries (via Promise.all calling .in())
-    mockQuery.in
-      .mockResolvedValueOnce({ data: [{ song_id: "s1" }, { song_id: "s1" }] })
-      .mockResolvedValueOnce({ data: [{ song_id: "s1" }] });
 
     const res = await GET();
     const data = await res.json();
     expect(data.songs[0].version_count).toBe(2);
     expect(data.songs[0].has_lyrics).toBe(true);
+    expect(data.songs[1].version_count).toBe(0);
+    expect(data.songs[1].has_lyrics).toBe(false);
+    // Counts come from the single aggregated select — no follow-up queries.
+    expect(mockQuery.in).not.toHaveBeenCalled();
+  });
+
+  it("disambiguates the versions embed by FK column", async () => {
+    // songs↔versions are linked by two FKs (versions.song_id and
+    // songs.current_version_id); a bare versions(count) fails with PGRST201.
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1", nickname: "Alex" } as never,
+      band: { id: "b1", name: "The Band", invite_token: "inv" } as never,
+    });
+    mockQuery.order.mockResolvedValue({ data: [], error: null });
+
+    await GET();
+    expect(mockQuery.select).toHaveBeenCalledWith(
+      expect.stringContaining("versions!song_id(count)")
+    );
+  });
+
+  it("includes the caller's member and band context", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1", nickname: "Alex" } as never,
+      band: { id: "b1", name: "The Band", invite_token: "inv" } as never,
+    });
+    mockQuery.order.mockResolvedValue({ data: [], error: null });
+
+    const res = await GET();
+    const data = await res.json();
+    expect(data.member).toEqual({ nickname: "Alex" });
+    expect(data.band).toEqual({ name: "The Band", invite_token: "inv" });
   });
 });
 

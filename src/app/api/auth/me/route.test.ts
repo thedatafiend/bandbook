@@ -22,6 +22,19 @@ import { auth } from "@clerk/nextjs/server";
 const mockGetBandCookie = vi.mocked(getBandCookie);
 const mockAuth = vi.mocked(auth);
 
+const band = { id: "b1", name: "The Band", invite_token: "inv" };
+
+function memberRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "m1",
+    nickname: "Alex",
+    clerk_user_id: "user_123",
+    last_active_at: new Date().toISOString(),
+    bands: band,
+    ...overrides,
+  };
+}
+
 describe("GET /api/auth/me", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -59,37 +72,43 @@ describe("GET /api/auth/me", () => {
     expect(data).toEqual({ member: null, band: null, expired: true });
   });
 
-  it("returns member and band on valid session", async () => {
+  it("returns member and band from a single joined query", async () => {
     mockAuth.mockResolvedValue({ userId: "user_123" } as never);
     mockGetBandCookie.mockResolvedValue("b1");
-    const member = { id: "m1", nickname: "Alex", clerk_user_id: "user_123" };
-    const band = { id: "b1", name: "The Band", invite_token: "inv" };
-
-    mockQuery.single
-      .mockResolvedValueOnce({ data: member })
-      .mockResolvedValueOnce({ data: band });
-    mockQuery.update.mockReturnValue(mockQuery);
+    const row = memberRow();
+    mockQuery.single.mockResolvedValueOnce({ data: row });
 
     const response = await GET();
     const data = await response.json();
-    expect(data.member).toEqual(member);
+    // toEqual treats undefined properties as absent — the response member
+    // must not carry the embedded bands object.
+    expect(data.member).toEqual({ ...row, bands: undefined });
     expect(data.band).toEqual(band);
+    expect(mockQuery.single).toHaveBeenCalledTimes(1);
   });
 
-  it("updates last_active_at for the member", async () => {
+  it("updates last_active_at when it is stale", async () => {
     mockAuth.mockResolvedValue({ userId: "user_123" } as never);
     mockGetBandCookie.mockResolvedValue("b1");
-    const member = { id: "m1", nickname: "Alex", clerk_user_id: "user_123" };
-    const band = { id: "b1", name: "The Band", invite_token: "inv" };
-
-    mockQuery.single
-      .mockResolvedValueOnce({ data: member })
-      .mockResolvedValueOnce({ data: band });
+    const staleTime = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    mockQuery.single.mockResolvedValueOnce({
+      data: memberRow({ last_active_at: staleTime }),
+    });
 
     await GET();
-    expect(mockClient.from).toHaveBeenCalledWith("members");
     expect(mockQuery.update).toHaveBeenCalledWith(
       expect.objectContaining({ last_active_at: expect.any(String) })
     );
+  });
+
+  it("skips the last_active_at write when it was updated recently", async () => {
+    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
+    mockGetBandCookie.mockResolvedValue("b1");
+    mockQuery.single.mockResolvedValueOnce({
+      data: memberRow({ last_active_at: new Date().toISOString() }),
+    });
+
+    await GET();
+    expect(mockQuery.update).not.toHaveBeenCalled();
   });
 });

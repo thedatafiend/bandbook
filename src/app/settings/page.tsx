@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { SettingsSkeleton } from "@/components/skeletons/settings-skeleton";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
@@ -34,11 +35,12 @@ export default function SettingsPage() {
   const [sessionExpired, setSessionExpired] = useState(false);
 
   const fetchData = useCallback(async () => {
-    // Fetch all data in parallel
+    // Fetch all data in parallel. GET claim-memberships is the read-only
+    // band listing — no claim scan or cookie mutation on every page view.
     const [authRes, membersRes, bandsRes] = await Promise.all([
       fetch("/api/auth/me"),
       fetch("/api/bands/members"),
-      fetch("/api/auth/claim-memberships", { method: "POST" }),
+      fetch("/api/auth/claim-memberships"),
     ]);
 
     if (authRes.status === 401) {
@@ -104,8 +106,9 @@ export default function SettingsPage() {
   return (
     <main className="flex flex-1 flex-col px-6 py-8 max-w-lg mx-auto w-full">
       <header className="flex items-center gap-4 mb-8">
-        <button
-          onClick={() => router.push("/songs")}
+        {/* Link (not router.push) so the songs route is prefetched */}
+        <Link
+          href="/songs"
           className="text-muted hover:text-foreground transition"
           aria-label="Back to songs"
         >
@@ -122,7 +125,7 @@ export default function SettingsPage() {
           >
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
-        </button>
+        </Link>
         <h1 className="text-2xl font-bold">Band Settings</h1>
       </header>
 

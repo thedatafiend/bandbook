@@ -74,8 +74,7 @@ describe("getAuthContext", () => {
     mockAuth.mockResolvedValue({ userId: "user_123" } as never);
     mockGetBandCookie.mockResolvedValue("band-1");
     singleResults = [
-      { data: { id: "m1", band_id: "band-1", nickname: "Alex", clerk_user_id: "user_123" } },
-      { data: null },
+      { data: { id: "m1", band_id: "band-1", nickname: "Alex", clerk_user_id: "user_123", bands: null } },
     ];
     expect(await getAuthContext()).toBeNull();
   });
@@ -85,9 +84,20 @@ describe("getAuthContext", () => {
     mockGetBandCookie.mockResolvedValue("band-1");
     const member = { id: "m1", band_id: "band-1", nickname: "Alex", clerk_user_id: "user_123" };
     const band = { id: "band-1", name: "The Band" };
-    singleResults = [{ data: member }, { data: band }];
+    singleResults = [{ data: { ...member, bands: band } }];
 
     const result = await getAuthContext();
     expect(result).toEqual({ userId: "user_123", member, band });
+  });
+
+  it("fetches member and band in a single query", async () => {
+    mockAuth.mockResolvedValue({ userId: "user_123" } as never);
+    mockGetBandCookie.mockResolvedValue("band-1");
+    const member = { id: "m1", band_id: "band-1", nickname: "Alex", clerk_user_id: "user_123" };
+    singleResults = [{ data: { ...member, bands: { id: "band-1", name: "The Band" } } }];
+
+    await getAuthContext();
+    expect(mockQuery.select).toHaveBeenCalledWith("*, bands(*)");
+    expect(mockQuery.single).toHaveBeenCalledTimes(1);
   });
 });
