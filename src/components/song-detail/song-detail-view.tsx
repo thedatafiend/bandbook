@@ -34,6 +34,13 @@ export function SongDetailView({ initialSong }: { initialSong: SongDetail }) {
     initialSong.versions.find((v) => v.is_current)?.id ?? null
   );
 
+  // The /songs catalog is server-rendered, and navigating back to it can be
+  // served from the client Router Cache — without this, a status/title change
+  // made here still shows the old value in the list until a hard reload.
+  const refreshList = useCallback(() => {
+    router.refresh();
+  }, [router]);
+
   // Re-fetch after mutations (uploads, version edits, lyric restores). The
   // endpoint verifies auth itself — a 401 means the session is gone.
   const fetchSong = useCallback(async () => {
@@ -54,8 +61,11 @@ export function SongDetailView({ initialSong }: { initialSong: SongDetail }) {
         if (current && s.versions.some((v) => v.id === current)) return current;
         return s.versions.find((v) => v.is_current)?.id ?? null;
       });
+      // Version/lyric mutations also change what the catalog shows
+      // (version count, lyrics badge, updated date)
+      refreshList();
     }
-  }, [song.id, router]);
+  }, [song.id, router, refreshList]);
 
   const playerVersion = playerVersionId
     ? song.versions.find((v) => v.id === playerVersionId) ?? null
@@ -95,6 +105,7 @@ export function SongDetailView({ initialSong }: { initialSong: SongDetail }) {
               });
               if (res.ok) {
                 setSong((s) => ({ ...s, title: newTitle }));
+                refreshList();
               }
               return res.ok;
             }}
@@ -110,6 +121,7 @@ export function SongDetailView({ initialSong }: { initialSong: SongDetail }) {
                 });
                 if (res.ok) {
                   setSong((s) => ({ ...s, status: newStatus }));
+                  refreshList();
                 }
                 return res.ok;
               }}
@@ -125,6 +137,7 @@ export function SongDetailView({ initialSong }: { initialSong: SongDetail }) {
                 });
                 if (res.ok) {
                   setSong((s) => ({ ...s, bpm: newBpm }));
+                  refreshList();
                 }
                 return res.ok;
               }}
