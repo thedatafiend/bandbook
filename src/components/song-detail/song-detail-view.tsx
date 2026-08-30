@@ -11,6 +11,7 @@ import {
 } from "@/components/song-detail/editable-fields";
 import { AudioPlayer } from "@/components/song-detail/audio-player";
 import { VersionsSection } from "@/components/song-detail/versions-section";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 
 // The lyrics composer (drag-and-drop editor, autosave, revision history)
 // is a large chunk that only matters when the Lyrics tab is active — load
@@ -41,8 +42,8 @@ export function SongDetailView({ initialSong }: { initialSong: SongDetail }) {
     router.refresh();
   }, [router]);
 
-  // Re-fetch after mutations (uploads, version edits, lyric restores). The
-  // endpoint verifies auth itself — a 401 means the session is gone.
+  // Re-fetch the song (also runs on auto-refresh). The endpoint verifies
+  // auth itself — a 401 means the session is gone.
   const fetchSong = useCallback(async () => {
     const res = await fetch(`/api/songs/${song.id}`);
 
@@ -55,17 +56,38 @@ export function SongDetailView({ initialSong }: { initialSong: SongDetail }) {
     const data = await res.json();
     const s = data.song as SongDetail | null;
     if (s) {
-      setSong(s);
+      setSong((prev) => ({
+        ...s,
+        // The response carries freshly signed audio URLs; swapping the URL
+        // of the version loaded in the player would change the <audio> src
+        // and restart playback, so keep that one's previous URL.
+        versions: s.versions.map((v) => {
+          const old = prev.versions.find((o) => o.id === v.id);
+          return v.id === playerVersionId &&
+            old &&
+            old.audio_url === v.audio_url &&
+            old.signed_audio_url
+            ? { ...v, signed_audio_url: old.signed_audio_url }
+            : v;
+        }),
+      }));
       // Keep the player on a valid version
       setPlayerVersionId((current) => {
         if (current && s.versions.some((v) => v.id === current)) return current;
         return s.versions.find((v) => v.is_current)?.id ?? null;
       });
-      // Version/lyric mutations also change what the catalog shows
-      // (version count, lyrics badge, updated date)
-      refreshList();
     }
-  }, [song.id, router, refreshList]);
+  }, [song.id, router, playerVersionId]);
+
+  // After version/lyric mutations: re-fetch, and also invalidate the cached
+  // catalog since counts, badges, and the updated date changed there too.
+  const handleMutated = useCallback(() => {
+    refreshList();
+    return fetchSong();
+  }, [refreshList, fetchSong]);
+
+  // Pick up changes made by bandmates while this page sits open
+  useAutoRefresh(fetchSong, { intervalMs: 60_000 });
 
   const playerVersion = playerVersionId
     ? song.versions.find((v) => v.id === playerVersionId) ?? null
@@ -197,13 +219,13 @@ export function SongDetailView({ initialSong }: { initialSong: SongDetail }) {
           versions={song.versions}
           playerVersionId={playerVersionId}
           onPlayVersion={(id) => setPlayerVersionId(id)}
-          onUpdate={fetchSong}
+          onUpdate={handleMutated}
         />
       ) : (
         <LyricsComposer
           songId={song.id}
           initialSections={song.lyric_sections}
-          onUpdate={fetchSong}
+          onUpdate={handleMutated}
         />
       )}
     </main>

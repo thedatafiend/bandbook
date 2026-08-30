@@ -23,6 +23,7 @@ vi.mock("next/dynamic", () => ({
 }));
 
 import { SongDetailView } from "./song-detail-view";
+import type { VersionDetail } from "./shared";
 
 const baseSong: SongDetail = {
   id: "s1",
@@ -85,6 +86,74 @@ describe("SongDetailView", () => {
     });
     expect(screen.getByTitle("Click to change status")).toHaveTextContent("Draft");
     expect(routerMock.refresh).not.toHaveBeenCalled();
+  });
+
+  it("picks up a bandmate's status change when the tab regains focus", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ song: { ...baseSong, status: "finished" } }),
+    });
+
+    render(<SongDetailView initialSong={baseSong} />);
+    expect(screen.getByTitle("Click to change status")).toHaveTextContent("Draft");
+
+    window.dispatchEvent(new Event("focus"));
+
+    await waitFor(() => {
+      expect(screen.getByTitle("Click to change status")).toHaveTextContent(
+        "Finished"
+      );
+    });
+    expect(global.fetch).toHaveBeenCalledWith("/api/songs/s1");
+  });
+
+  it("keeps the in-player audio URL stable across a background refresh", async () => {
+    const version: VersionDetail = {
+      id: "v1",
+      version_number: 1,
+      label: null,
+      audio_url: "band/s1/v1.mp3",
+      signed_audio_url: "https://storage.example/v1?token=old",
+      audio_duration: 120,
+      notes: null,
+      is_current: true,
+      created_at: "2026-05-10T00:00:00.000Z",
+      created_by_member_id: "m1",
+      created_by_nickname: "Ryan",
+      share_token: null,
+    };
+    const songWithVersion: SongDetail = { ...baseSong, versions: [version] };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        song: {
+          ...songWithVersion,
+          status: "finished",
+          versions: [
+            { ...version, signed_audio_url: "https://storage.example/v1?token=new" },
+          ],
+        },
+      }),
+    });
+
+    const { container } = render(<SongDetailView initialSong={songWithVersion} />);
+
+    window.dispatchEvent(new Event("focus"));
+
+    // The refetched status lands…
+    await waitFor(() => {
+      expect(screen.getByTitle("Click to change status")).toHaveTextContent(
+        "Finished"
+      );
+    });
+    // …but the <audio> src is untouched, so playback isn't restarted
+    expect(container.querySelector("audio")).toHaveAttribute(
+      "src",
+      "https://storage.example/v1?token=old"
+    );
   });
 
   it("refreshes the router after a title change", async () => {

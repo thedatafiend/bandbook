@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { NewSongModal } from "@/components/new-song-modal";
 import { SongListItem, type SongCard } from "@/components/song-list-item";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 
 type SortOption = "updated" | "title" | "created";
 type StatusFilter = "all" | "draft" | "in-progress" | "finished";
@@ -27,6 +28,15 @@ export function SongsView({
 }) {
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
+
+  // The catalog renders from server props, and a back/forward navigation can
+  // serve a stale Router Cache payload. Re-sync on mount, when the tab
+  // regains focus, and on a slow poll so statuses edited on the detail page
+  // (or by a bandmate) never disagree with the list.
+  useAutoRefresh(
+    useCallback(() => router.refresh(), [router]),
+    { refreshOnMount: true, intervalMs: 60_000 }
+  );
 
   // Songs render from server props. Deletions are tracked locally for an
   // instant UI update; router.refresh() re-syncs the server data.
