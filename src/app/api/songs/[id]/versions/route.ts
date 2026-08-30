@@ -61,15 +61,11 @@ export async function POST(
       .maybeSingle();
 
     const nextVersionNumber = maxVersionRow ? maxVersionRow.version_number + 1 : 1;
-    const isFirst = nextVersionNumber === 1;
 
-    if (!isFirst) {
-      await supabase
-        .from("versions")
-        .update({ is_current: false })
-        .eq("song_id", songId);
-    }
-
+    // Insert first, demote afterwards. Demoting the existing versions before
+    // the insert meant a failed insert left the song with no current version
+    // and a stale current_version_id — an orphaned state the UI can't recover
+    // from without another upload.
     const { data: version, error: versionError } = await supabase
       .from("versions")
       .insert({
@@ -91,6 +87,12 @@ export async function POST(
         { status: 500 }
       );
     }
+
+    await supabase
+      .from("versions")
+      .update({ is_current: false })
+      .eq("song_id", songId)
+      .neq("id", version.id);
 
     await supabase
       .from("songs")

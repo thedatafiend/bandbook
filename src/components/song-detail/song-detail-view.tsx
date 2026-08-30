@@ -34,6 +34,22 @@ export function SongDetailView({ initialSong }: { initialSong: SongDetail }) {
     initialSong.versions.find((v) => v.is_current)?.id ?? null
   );
 
+  // The server re-renders this island with fresh data (router.refresh(),
+  // back/forward restores from the router cache, revisits). Seeded state
+  // would otherwise keep showing whatever the first render carried — hiding
+  // versions uploaded since — so adopt the new server data when it changes.
+  const [seededFrom, setSeededFrom] = useState(initialSong);
+  if (initialSong !== seededFrom) {
+    setSeededFrom(initialSong);
+    setSong(initialSong);
+    setPlayerVersionId((current) => {
+      if (current && initialSong.versions.some((v) => v.id === current)) {
+        return current;
+      }
+      return initialSong.versions.find((v) => v.is_current)?.id ?? null;
+    });
+  }
+
   // Re-fetch after mutations (uploads, version edits, lyric restores). The
   // endpoint verifies auth itself — a 401 means the session is gone.
   const fetchSong = useCallback(async () => {
@@ -54,6 +70,9 @@ export function SongDetailView({ initialSong }: { initialSong: SongDetail }) {
         if (current && s.versions.some((v) => v.id === current)) return current;
         return s.versions.find((v) => v.is_current)?.id ?? null;
       });
+      // Invalidate the router cache too, or a back/forward navigation would
+      // restore the pre-mutation payload and this state would re-seed from it.
+      router.refresh();
     }
   }, [song.id, router]);
 

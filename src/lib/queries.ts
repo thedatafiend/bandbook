@@ -123,6 +123,18 @@ export async function getSongDetail(
     return null;
   }
 
+  // A failed child query must not degrade to an empty list — rendering the
+  // song with zero versions reads as data loss. Fail loudly instead so the
+  // error boundary / API 500 shows and the client keeps its last good state.
+  if (versionsResult.error) {
+    console.error("getSongDetail versions query failed:", versionsResult.error);
+    throw new Error("Failed to load song versions");
+  }
+  if (lyricsResult.error) {
+    console.error("getSongDetail lyrics query failed:", lyricsResult.error);
+    throw new Error("Failed to load song lyrics");
+  }
+
   const versions = (versionsResult.data ?? []) as unknown as VersionRow[];
   const lyricSections = (lyricsResult.data ?? []) as unknown as LyricSectionRow[];
 

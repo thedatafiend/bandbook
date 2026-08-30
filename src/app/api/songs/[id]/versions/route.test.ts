@@ -10,6 +10,7 @@ const mockQuery = {
   update: vi.fn(),
   delete: vi.fn(),
   eq: vi.fn(),
+  neq: vi.fn(),
   order: vi.fn(),
   limit: vi.fn(),
   single: vi.fn(),
@@ -166,5 +167,42 @@ describe("POST /api/songs/[id]/versions", () => {
     expect(res.status).toBe(500);
     const data = await res.json();
     expect(data.error).toContain("rls violation");
+  });
+
+  it("does not demote existing versions when the insert fails", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [
+      { data: { id: "s1", band_id: "b1" } },
+      { data: { version_number: 3 } }, // existing versions present
+    ];
+    insertSelectSingleResult = { data: null, error: { message: "boom" } };
+
+    const req = makeJsonRequest({ path: "b1/s1/uuid.mp3" });
+    const res = await POST(req, makeParams("s1"));
+    expect(res.status).toBe(500);
+    // The old flags must be intact — nothing was cleared before the insert.
+    expect(mockQuery.update).not.toHaveBeenCalled();
+  });
+
+  it("demotes only the other versions after a successful insert", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    const version = { id: "v9", version_number: 4 };
+    singleResults = [
+      { data: { id: "s1", band_id: "b1" } },
+      { data: { version_number: 3 } },
+    ];
+    insertSelectSingleResult = { data: version, error: null };
+
+    const req = makeJsonRequest({ path: "b1/s1/uuid.mp3" });
+    const res = await POST(req, makeParams("s1"));
+    expect(res.status).toBe(200);
+    expect(mockQuery.update).toHaveBeenCalledWith({ is_current: false });
+    expect(mockQuery.neq).toHaveBeenCalledWith("id", "v9");
   });
 });

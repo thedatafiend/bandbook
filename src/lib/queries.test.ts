@@ -64,6 +64,30 @@ describe("getSongDetail", () => {
     expect(await getSongDetail(mockSupabase, "s1", "b1")).toBeNull();
   });
 
+  it("throws when the versions query fails instead of rendering zero versions", async () => {
+    singleResult = { data: { id: "s1", title: "Song" } };
+    orderResults = [
+      { data: null, error: new Error("connection reset") }, // versions
+      { data: [] }, // lyric sections
+    ];
+
+    await expect(getSongDetail(mockSupabase, "s1", "b1")).rejects.toThrow(
+      /versions/i
+    );
+  });
+
+  it("throws when the lyrics query fails", async () => {
+    singleResult = { data: { id: "s1", title: "Song" } };
+    orderResults = [
+      { data: [] }, // versions
+      { data: null, error: new Error("connection reset") }, // lyric sections
+    ];
+
+    await expect(getSongDetail(mockSupabase, "s1", "b1")).rejects.toThrow(
+      /lyrics/i
+    );
+  });
+
   it("falls back to 'Unknown' when a joined nickname is missing", async () => {
     singleResult = { data: { id: "s1", title: "Song" } };
     orderResults = [

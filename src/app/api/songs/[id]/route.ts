@@ -152,7 +152,13 @@ export async function GET(
   const { id } = await params;
   const supabase = await createClient();
 
-  const song = await getSongDetail(supabase, id, auth.band.id);
+  let song;
+  try {
+    song = await getSongDetail(supabase, id, auth.band.id);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to load song";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 
   if (!song) {
     return NextResponse.json({ error: "Song not found" }, { status: 404 });
