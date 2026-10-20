@@ -1,5 +1,7 @@
 /** Shared types, constants, and format helpers for the song detail view. */
 
+import type { KeyMode } from "@/lib/music-key";
+
 export interface VersionDetail {
   id: string;
   version_number: number;
@@ -9,6 +11,9 @@ export interface VersionDetail {
   audio_duration: number | null;
   notes: string | null;
   is_current: boolean;
+  detected_key_tonic: number | null;
+  detected_key_mode: KeyMode | null;
+  key_confidence: number | null;
   created_at: string;
   created_by_member_id: string;
   created_by_nickname: string;
@@ -30,6 +35,8 @@ export interface SongDetail {
   title: string;
   status: string;
   bpm: number | null;
+  key_tonic: number | null;
+  key_mode: KeyMode | null;
   current_version_id: string | null;
   created_at: string;
   updated_at: string;

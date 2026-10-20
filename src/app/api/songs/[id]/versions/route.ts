@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth";
 import type { Version } from "@/lib/supabase/types";
+import { parseDetectedKeyInput } from "@/lib/music-key";
 
 // Registers an already-uploaded audio file as a new version. The file itself
 // is uploaded directly from the browser to Supabase Storage via a signed URL
@@ -35,11 +36,18 @@ export async function POST(
       path?: unknown;
       label?: unknown;
       notes?: unknown;
+      detectedKey?: unknown;
     } | null;
 
     const path = typeof body?.path === "string" ? body.path : "";
     const label = typeof body?.label === "string" ? body.label : null;
     const notes = typeof body?.notes === "string" ? body.notes : null;
+    // Key analysis runs in the browser alongside the upload. By now the file
+    // is already in storage, so a malformed result is dropped rather than
+    // failing the registration and orphaning the object.
+    const parsedKey =
+      body?.detectedKey !== undefined ? parseDetectedKeyInput(body.detectedKey) : null;
+    const detectedKey = parsedKey?.ok ? parsedKey.value : null;
 
     if (!path) {
       return NextResponse.json({ error: "Storage path is required" }, { status: 400 });
@@ -79,6 +87,9 @@ export async function POST(
         audio_url: path,
         notes,
         is_current: true,
+        detected_key_tonic: detectedKey?.tonic ?? null,
+        detected_key_mode: detectedKey?.mode ?? null,
+        key_confidence: detectedKey?.confidence ?? null,
         created_by_member_id: auth.member.id,
       })
       .select()

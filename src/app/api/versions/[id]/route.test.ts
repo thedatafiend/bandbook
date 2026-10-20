@@ -153,6 +153,62 @@ describe("PATCH /api/versions/[id]", () => {
     expect(res.status).toBe(500);
   });
 
+  it("stores a detected key", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [
+      { data: { id: "v1", song_id: "s1", songs: { band_id: "b1" } }, error: null },
+    ];
+
+    const res = await PATCH(
+      makeReq({ detectedKey: { tonic: 2, mode: "major", confidence: 0.7 } }),
+      makeParams("v1")
+    );
+    expect(res.status).toBe(200);
+    expect(mockQuery.update).toHaveBeenCalledWith({
+      detected_key_tonic: 2,
+      detected_key_mode: "major",
+      key_confidence: 0.7,
+    });
+  });
+
+  it("clears a detected key with null", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [
+      { data: { id: "v1", song_id: "s1", songs: { band_id: "b1" } }, error: null },
+    ];
+
+    const res = await PATCH(makeReq({ detectedKey: null }), makeParams("v1"));
+    expect(res.status).toBe(200);
+    expect(mockQuery.update).toHaveBeenCalledWith({
+      detected_key_tonic: null,
+      detected_key_mode: null,
+      key_confidence: null,
+    });
+  });
+
+  it("returns 400 for a malformed detected key", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [
+      { data: { id: "v1", song_id: "s1", songs: { band_id: "b1" } }, error: null },
+    ];
+
+    const res = await PATCH(
+      makeReq({ detectedKey: { tonic: 2, mode: "major" } }),
+      makeParams("v1")
+    );
+    expect(res.status).toBe(400);
+    expect(mockQuery.update).not.toHaveBeenCalled();
+  });
+
   it("returns success with no updates when body is empty", async () => {
     mockGetAuth.mockResolvedValue({
       member: { id: "m1" } as never,

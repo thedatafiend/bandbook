@@ -8,7 +8,9 @@ import {
   EditableTitle,
   EditableStatus,
   EditableBpm,
+  EditableKey,
 } from "@/components/song-detail/editable-fields";
+import { keyFromColumns } from "@/lib/music-key";
 import { AudioPlayer } from "@/components/song-detail/audio-player";
 import { VersionsSection } from "@/components/song-detail/versions-section";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
@@ -89,6 +91,11 @@ export function SongDetailView({ initialSong }: { initialSong: SongDetail }) {
   // Pick up changes made by bandmates while this page sits open
   useAutoRefresh(fetchSong, { intervalMs: 60_000 });
 
+  const currentVersion = song.versions.find((v) => v.is_current) ?? null;
+  const detectedKey = currentVersion
+    ? keyFromColumns(currentVersion.detected_key_tonic, currentVersion.detected_key_mode)
+    : null;
+
   const playerVersion = playerVersionId
     ? song.versions.find((v) => v.id === playerVersionId) ?? null
     : null;
@@ -132,7 +139,7 @@ export function SongDetailView({ initialSong }: { initialSong: SongDetail }) {
               return res.ok;
             }}
           />
-          <div className="flex items-center gap-2 text-muted-dim text-sm">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-dim text-sm">
             <EditableStatus
               value={song.status}
               onSave={async (newStatus) => {
@@ -159,6 +166,27 @@ export function SongDetailView({ initialSong }: { initialSong: SongDetail }) {
                 });
                 if (res.ok) {
                   setSong((s) => ({ ...s, bpm: newBpm }));
+                  refreshList();
+                }
+                return res.ok;
+              }}
+            />
+            <span aria-hidden="true">·</span>
+            <EditableKey
+              value={keyFromColumns(song.key_tonic, song.key_mode)}
+              suggestion={detectedKey}
+              onSave={async (newKey) => {
+                const res = await fetch(`/api/songs/${song.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ key: newKey }),
+                });
+                if (res.ok) {
+                  setSong((s) => ({
+                    ...s,
+                    key_tonic: newKey?.tonic ?? null,
+                    key_mode: newKey?.mode ?? null,
+                  }));
                   refreshList();
                 }
                 return res.ok;

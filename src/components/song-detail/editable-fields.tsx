@@ -2,6 +2,13 @@
 
 import { useEffect, useState, useRef } from "react";
 import { STATUS_LABELS, STATUS_OPTIONS } from "./shared";
+import {
+  ALL_KEYS,
+  formatKey,
+  keyId,
+  parseKeyId,
+  type MusicalKey,
+} from "@/lib/music-key";
 
 /* ─── Editable Title ─── */
 
@@ -296,5 +303,118 @@ export function EditableBpm({
         <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
       </svg>
     </button>
+  );
+}
+
+/* ─── Editable Key ─── */
+
+export function EditableKey({
+  value,
+  suggestion,
+  onSave,
+}: {
+  value: MusicalKey | null;
+  /** Key detected from the current recording, offered when none is set. */
+  suggestion: MusicalKey | null;
+  onSave: (newValue: MusicalKey | null) => Promise<boolean>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const selectRef = useRef<HTMLSelectElement>(null);
+
+  useEffect(() => {
+    if (editing) selectRef.current?.focus();
+  }, [editing]);
+
+  async function save(next: MusicalKey | null) {
+    if (next?.tonic === value?.tonic && next?.mode === value?.mode) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    const ok = await onSave(next);
+    setSaving(false);
+    if (ok) {
+      setEditing(false);
+      setError(null);
+    } else {
+      setError("Failed");
+    }
+  }
+
+  if (editing) {
+    return (
+      <span className="inline-flex items-center gap-1">
+        <select
+          ref={selectRef}
+          aria-label="Key"
+          value={value ? keyId(value) : ""}
+          disabled={saving}
+          onChange={(e) => save(parseKeyId(e.target.value))}
+          onBlur={() => !saving && setEditing(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setError(null);
+              setEditing(false);
+            }
+          }}
+          className="bg-surface-alt border border-border rounded px-1.5 py-0.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+        >
+          <option value="">No key</option>
+          {(["major", "minor"] as const).map((mode) => (
+            <optgroup key={mode} label={mode === "major" ? "Major" : "Minor"}>
+              {ALL_KEYS.filter((k) => k.mode === mode).map((k) => (
+                <option key={keyId(k)} value={keyId(k)}>
+                  {formatKey(k)}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        {error && <span className="text-red-400 text-xs">{error}</span>}
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <button
+        onClick={() => {
+          setError(null);
+          setEditing(true);
+        }}
+        className="group inline-flex items-center gap-1 hover:text-foreground/80 transition"
+        title="Click to edit key"
+      >
+        <span>{value ? formatKey(value) : "Set key"}</span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="shrink-0 opacity-0 group-hover:opacity-100 transition"
+        >
+          <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+        </svg>
+      </button>
+      {!value && suggestion && (
+        <button
+          onClick={() => save(suggestion)}
+          disabled={saving}
+          className="text-xs bg-accent/15 text-foreground/90 px-2 py-0.5 rounded-full hover:bg-accent/25 transition disabled:opacity-50"
+          title="Detected from the current recording — click to use it"
+          aria-label={`Use detected key ${formatKey(suggestion)}`}
+        >
+          {saving ? "Saving…" : `Use ${formatKey(suggestion)}?`}
+        </button>
+      )}
+      {error && <span className="text-red-400 text-xs">{error}</span>}
+    </span>
   );
 }

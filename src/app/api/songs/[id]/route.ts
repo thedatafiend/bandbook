@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth";
 import { getSongDetail } from "@/lib/queries";
+import { parseKeyInput } from "@/lib/music-key";
 
 export async function PATCH(
   request: Request,
@@ -28,10 +29,11 @@ export async function PATCH(
   }
 
   const body = await request.json();
-  const { title, bpm, status } = body as {
+  const { title, bpm, status, key } = body as {
     title?: string;
     bpm?: number | null;
     status?: string;
+    key?: unknown;
   };
 
   const updates: Record<string, unknown> = {};
@@ -59,6 +61,14 @@ export async function PATCH(
     } else {
       updates.bpm = bpm;
     }
+  }
+  if (key !== undefined) {
+    const parsed = parseKeyInput(key);
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    updates.key_tonic = parsed.value?.tonic ?? null;
+    updates.key_mode = parsed.value?.mode ?? null;
   }
   if (status !== undefined) {
     if (status !== "draft" && status !== "in-progress" && status !== "finished") {

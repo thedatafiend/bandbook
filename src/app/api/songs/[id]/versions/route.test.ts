@@ -150,6 +150,54 @@ describe("POST /api/songs/[id]/versions", () => {
     expect(data.version).toEqual(version);
   });
 
+  it("stores the browser-detected key with the version", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1", band_id: "b1" } }, { data: null }];
+    insertSelectSingleResult = { data: { id: "v1", version_number: 1 }, error: null };
+
+    const req = makeJsonRequest({
+      path: "b1/s1/uuid.mp3",
+      detectedKey: { tonic: 4, mode: "minor", confidence: 0.82 },
+    });
+    const res = await POST(req, makeParams("s1"));
+
+    expect(res.status).toBe(200);
+    expect(mockQuery.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detected_key_tonic: 4,
+        detected_key_mode: "minor",
+        key_confidence: 0.82,
+      })
+    );
+  });
+
+  it("still registers the version when the detected key is malformed", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1", band_id: "b1" } }, { data: null }];
+    insertSelectSingleResult = { data: { id: "v1", version_number: 1 }, error: null };
+
+    const req = makeJsonRequest({
+      path: "b1/s1/uuid.mp3",
+      detectedKey: { tonic: 40, mode: "minor", confidence: 2 },
+    });
+    const res = await POST(req, makeParams("s1"));
+
+    expect(res.status).toBe(200);
+    expect(mockQuery.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detected_key_tonic: null,
+        detected_key_mode: null,
+        key_confidence: null,
+      })
+    );
+  });
+
   it("returns 500 with the underlying message when version insert fails", async () => {
     mockGetAuth.mockResolvedValue({
       member: { id: "m1" } as never,

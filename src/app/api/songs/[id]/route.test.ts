@@ -332,6 +332,53 @@ describe("PATCH /api/songs/[id]", () => {
     expect(res.status).toBe(200);
   });
 
+  it("sets the song key", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+
+    const res = await PATCH(
+      makeReq({ key: { tonic: 9, mode: "minor" } }),
+      makeParams("s1")
+    );
+    expect(res.status).toBe(200);
+    expect(mockQuery.update).toHaveBeenCalledWith(
+      expect.objectContaining({ key_tonic: 9, key_mode: "minor" })
+    );
+  });
+
+  it("clears the song key when null is provided", async () => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+
+    const res = await PATCH(makeReq({ key: null }), makeParams("s1"));
+    expect(res.status).toBe(200);
+    expect(mockQuery.update).toHaveBeenCalledWith(
+      expect.objectContaining({ key_tonic: null, key_mode: null })
+    );
+  });
+
+  it.each([
+    "A minor",
+    { tonic: 12, mode: "major" },
+    { tonic: 2, mode: "dorian" },
+  ])("returns 400 for invalid key %j", async (key) => {
+    mockGetAuth.mockResolvedValue({
+      member: { id: "m1" } as never,
+      band: { id: "b1" } as never,
+    });
+    singleResults = [{ data: { id: "s1" } }];
+
+    const res = await PATCH(makeReq({ key }), makeParams("s1"));
+    expect(res.status).toBe(400);
+    expect(mockQuery.update).not.toHaveBeenCalled();
+  });
+
   it.each(["draft", "in-progress", "finished"])(
     "updates status to %s",
     async (status) => {
