@@ -30,6 +30,8 @@ const baseSong: SongDetail = {
   title: "Midnight Drive",
   status: "draft",
   bpm: null,
+  key_tonic: null,
+  key_mode: null,
   current_version_id: null,
   created_at: "2026-05-01T00:00:00.000Z",
   updated_at: "2026-05-20T00:00:00.000Z",
@@ -118,6 +120,9 @@ describe("SongDetailView", () => {
       audio_duration: 120,
       notes: null,
       is_current: true,
+      detected_key_tonic: null,
+      detected_key_mode: null,
+      key_confidence: null,
       created_at: "2026-05-10T00:00:00.000Z",
       created_by_member_id: "m1",
       created_by_nickname: "Ryan",
@@ -174,5 +179,60 @@ describe("SongDetailView", () => {
       body: JSON.stringify({ title: "Dawn Drive" }),
     });
     expect(routerMock.refresh).toHaveBeenCalled();
+  });
+  it("offers the current recording's detected key and saves it as the song key", async () => {
+    const version: VersionDetail = {
+      id: "v1",
+      version_number: 1,
+      label: null,
+      audio_url: "band/s1/v1.mp3",
+      signed_audio_url: "https://storage.example/v1",
+      audio_duration: 120,
+      notes: null,
+      is_current: true,
+      detected_key_tonic: 4,
+      detected_key_mode: "minor",
+      key_confidence: 0.81,
+      created_at: "2026-05-10T00:00:00.000Z",
+      created_by_member_id: "m1",
+      created_by_nickname: "Ryan",
+      share_token: null,
+    };
+    global.fetch = vi.fn().mockResolvedValue({ ok: true });
+
+    render(<SongDetailView initialSong={{ ...baseSong, versions: [version] }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Use detected key E minor" }));
+
+    await waitFor(() => {
+      expect(screen.getByTitle("Click to edit key")).toHaveTextContent("E minor");
+    });
+    expect(global.fetch).toHaveBeenCalledWith("/api/songs/s1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: { tonic: 4, mode: "minor" } }),
+    });
+    expect(routerMock.refresh).toHaveBeenCalled();
+    // Once a key is set the suggestion goes away
+    expect(
+      screen.queryByRole("button", { name: /Use detected key/ })
+    ).not.toBeInTheDocument();
+  });
+
+  it("sets the song key manually from the picker", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true });
+
+    render(<SongDetailView initialSong={baseSong} />);
+    expect(screen.getByTitle("Click to edit key")).toHaveTextContent("Set key");
+    fireEvent.click(screen.getByTitle("Click to edit key"));
+    fireEvent.change(screen.getByLabelText("Key"), { target: { value: "3:major" } });
+
+    await waitFor(() => {
+      expect(screen.getByTitle("Click to edit key")).toHaveTextContent("E♭ major");
+    });
+    expect(global.fetch).toHaveBeenCalledWith("/api/songs/s1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: { tonic: 3, mode: "major" } }),
+    });
   });
 });

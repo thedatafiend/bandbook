@@ -3,6 +3,8 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { formatDate, formatTime, type VersionDetail } from "./shared";
+import { formatKey, keyFromColumns } from "@/lib/music-key";
+import { analyzeKeyFromUrl } from "@/lib/analyze-audio-key";
 
 // The upload flow is only needed once the user taps "Add Recording", so its
 // code stays out of the initial page chunk.
@@ -110,6 +112,13 @@ function VersionCard({
   const [shareToken, setShareToken] = useState<string | null>(version.share_token);
   const [sharing, setSharing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+
+  const detectedKey = keyFromColumns(
+    version.detected_key_tonic,
+    version.detected_key_mode
+  );
 
   const shareUrl =
     shareToken && typeof window !== "undefined"
@@ -146,6 +155,31 @@ function VersionCard({
     } catch {
       // Clipboard unavailable (e.g. insecure context) — ignore silently.
     }
+  }
+
+  // Run key detection in the browser on the already-uploaded recording —
+  // covers versions uploaded before detection existed, or a retry.
+  async function analyzeKey() {
+    if (!version.signed_audio_url) return;
+    setAnalyzing(true);
+    setAnalyzeError(null);
+    const result = await analyzeKeyFromUrl(version.signed_audio_url);
+    if (!result) {
+      setAnalyzeError("Couldn't detect a key for this recording.");
+      setAnalyzing(false);
+      return;
+    }
+    const res = await fetch(`/api/versions/${version.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ detectedKey: result }),
+    });
+    setAnalyzing(false);
+    if (!res.ok) {
+      setAnalyzeError("Couldn't save the detected key.");
+      return;
+    }
+    onUpdate();
   }
 
   async function saveChanges() {
@@ -210,6 +244,15 @@ function VersionCard({
             {version.audio_duration != null && (
               <span>{formatTime(version.audio_duration)}</span>
             )}
+            {detectedKey && (
+              <span
+                title={`Detected from the audio (confidence ${Math.round(
+                  (version.key_confidence ?? 0) * 100
+                )}%)`}
+              >
+                {formatKey(detectedKey)}
+              </span>
+            )}
           </div>
         </div>
 
@@ -271,6 +314,34 @@ function VersionCard({
             rows={2}
             className="rounded-lg bg-surface-alt border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-dim focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none"
           />
+
+          {/* Key detection */}
+          <div className="rounded-lg border border-border bg-surface-alt/40 px-3 py-2.5 flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+              <span className="text-foreground text-xs font-medium">
+                Key{detectedKey ? `: ${formatKey(detectedKey)}` : ""}
+              </span>
+              <button
+                onClick={analyzeKey}
+                disabled={analyzing || !version.signed_audio_url}
+                className="text-xs text-foreground/80 hover:text-foreground transition disabled:opacity-50"
+              >
+                {analyzing
+                  ? "Analyzing…"
+                  : detectedKey
+                    ? "Re-analyze"
+                    : "Analyze key"}
+              </button>
+            </div>
+            {analyzeError ? (
+              <p className="text-red-400 text-xs">{analyzeError}</p>
+            ) : (
+              <p className="text-muted-dim text-xs">
+                Estimated from the recording in your browser. It can mistake
+                closely related keys, so treat it as a suggestion.
+              </p>
+            )}
+          </div>
 
           {/* Shareable link */}
           <div className="rounded-lg border border-border bg-surface-alt/40 px-3 py-2.5 flex flex-col gap-2">

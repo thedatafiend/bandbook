@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { readError } from "./shared";
+import { analyzeKeyFromFile } from "@/lib/analyze-audio-key";
 
 export function UploadWidget({
   songId,
@@ -16,6 +17,7 @@ export function UploadWidget({
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [analyzingKey, setAnalyzingKey] = useState(false);
   const [error, setError] = useState("");
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -36,6 +38,11 @@ export function UploadWidget({
     setUploading(true);
     setProgress(0);
     setError("");
+
+    // Detect the key while the upload runs — the file is already in memory
+    // here, so no re-download is needed. Never fails the upload: resolves
+    // null on any problem.
+    const keyPromise = analyzeKeyFromFile(file);
 
     try {
       // 1. Ask the server for a signed upload URL. Sending the file through
@@ -85,12 +92,15 @@ export function UploadWidget({
         xhr.send(file);
       });
 
+      setAnalyzingKey(true);
+      const detectedKey = await keyPromise;
+
       // 3. Register the version row. Small JSON body, fits well under the
       //    Vercel function limit.
       const finRes = await fetch(`/api/songs/${songId}/versions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path }),
+        body: JSON.stringify({ path, detectedKey }),
       });
       if (!finRes.ok) {
         throw new Error(await readError(finRes, "Failed to register version"));
@@ -99,6 +109,7 @@ export function UploadWidget({
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setUploading(false);
+      setAnalyzingKey(false);
     }
   }
 
@@ -162,7 +173,7 @@ export function UploadWidget({
             />
           </div>
           <p className="text-muted text-xs text-center">
-            {progress}% — {file?.name}
+            {analyzingKey ? "Analyzing key…" : `${progress}% — ${file?.name}`}
           </p>
         </div>
       )}

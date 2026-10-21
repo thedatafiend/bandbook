@@ -1,3 +1,5 @@
+import type { KeyMode } from "@/lib/music-key";
+
 export type SongStatus = "draft" | "in-progress" | "finished";
 export type SectionType =
   | "verse"
@@ -36,6 +38,8 @@ export interface Song {
   title: string;
   status: SongStatus;
   bpm: number | null;
+  key_tonic: number | null;
+  key_mode: KeyMode | null;
   current_version_id: string | null;
   created_at: string;
   updated_at: string;
@@ -51,6 +55,9 @@ export interface Version {
   audio_duration: number | null;
   notes: string | null;
   is_current: boolean;
+  detected_key_tonic: number | null;
+  detected_key_mode: KeyMode | null;
+  key_confidence: number | null;
   created_at: string;
   created_by_member_id: string;
 }

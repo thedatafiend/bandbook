@@ -5,6 +5,7 @@ import type {
   VersionDetail,
   LyricSectionDetail,
 } from "@/components/song-detail/shared";
+import type { KeyMode } from "@/lib/music-key";
 
 /**
  * Server-side data access shared by API routes and Server Components.
@@ -68,6 +69,9 @@ interface VersionRow {
   audio_duration: number | null;
   notes: string | null;
   is_current: boolean;
+  detected_key_tonic: number | null;
+  detected_key_mode: KeyMode | null;
+  key_confidence: number | null;
   created_at: string;
   created_by_member_id: string;
   created_by: { nickname: string } | null;
@@ -105,7 +109,7 @@ export async function getSongDetail(
     supabase
       .from("versions")
       .select(
-        "id, version_number, label, audio_url, audio_duration, notes, is_current, created_at, created_by_member_id, created_by:members!created_by_member_id(nickname)"
+        "id, version_number, label, audio_url, audio_duration, notes, is_current, detected_key_tonic, detected_key_mode, key_confidence, created_at, created_by_member_id, created_by:members!created_by_member_id(nickname)"
       )
       .eq("song_id", songId)
       .order("version_number", { ascending: false }),

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth";
+import { parseDetectedKeyInput } from "@/lib/music-key";
 
 export async function PATCH(
   request: Request,
@@ -46,16 +47,26 @@ export async function PATCH(
   }
 
   const body = await request.json();
-  const { label, notes, setCurrent } = body as {
+  const { label, notes, setCurrent, detectedKey } = body as {
     label?: string;
     notes?: string;
     setCurrent?: boolean;
+    detectedKey?: unknown;
   };
 
   // Build update object
   const updates: Record<string, unknown> = {};
   if (label !== undefined) updates.label = label || null;
   if (notes !== undefined) updates.notes = notes || null;
+  if (detectedKey !== undefined) {
+    const parsed = parseDetectedKeyInput(detectedKey);
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    updates.detected_key_tonic = parsed.value?.tonic ?? null;
+    updates.detected_key_mode = parsed.value?.mode ?? null;
+    updates.key_confidence = parsed.value?.confidence ?? null;
+  }
 
   // If setting as current, unmark all others first
   if (setCurrent) {
